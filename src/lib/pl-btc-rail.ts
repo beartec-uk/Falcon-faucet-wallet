@@ -7,6 +7,7 @@
  */
 
 import { signPlPay, signRailDeposit, signRailWithdraw } from './pl-wallet-sign'
+import { sha256 } from '@noble/hashes/sha2.js'
 import {
   BITVM2_CLAIM_CSV,
   BITVM2_MIN_PEGOUT_SATS,
@@ -326,6 +327,139 @@ export async function pegInPlBtc(opts: {
   })
 }
 
+
+const BTC_PEGOUT_PENDING_KEY = 'falcon-pl-btc-pegout-pending-v1'
+
+export type PendingBtcPegOut = {
+  account: string
+  amount: number
+  dest: string
+  network: string
+  sequence: number
+  burnTxId: string
+  rawJson?: string
+  kickoffHex?: string
+  kickoffTxid?: string
+  kickoffAmount?: number
+  at: number
+}
+
+function btcPendingStorageKey(account: string): string {
+  return account.trim().toLowerCase()
+}
+
+export function btcPegOutConflicts(
+  pending: PendingBtcPegOut | null,
+  amount: number,
+  dest: string,
+): boolean {
+  return !!(pending && (pending.amount !== amount || pending.dest !== dest))
+}
+
+function readBtcPendingMap(): Record<string, PendingBtcPegOut> {
+  if (typeof localStorage === 'undefined') return {}
+  try {
+    const raw = localStorage.getItem(BTC_PEGOUT_PENDING_KEY)
+    const m = raw ? (JSON.parse(raw) as Record<string, PendingBtcPegOut>) : {}
+    return m && typeof m === 'object' ? m : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeBtcPendingMap(m: Record<string, PendingBtcPegOut>): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(BTC_PEGOUT_PENDING_KEY, JSON.stringify(m))
+  } catch {
+    /* quota */
+  }
+}
+
+export function loadPendingBtcPegOut(account: string): PendingBtcPegOut | null {
+  return readBtcPendingMap()[btcPendingStorageKey(account)] ?? null
+}
+
+export function savePendingBtcPegOut(p: PendingBtcPegOut): void {
+  const m = readBtcPendingMap()
+  m[btcPendingStorageKey(p.account)] = p
+  writeBtcPendingMap(m)
+}
+
+export function clearPendingBtcPegOut(account: string): void {
+  const m = readBtcPendingMap()
+  delete m[btcPendingStorageKey(account)]
+  writeBtcPendingMap(m)
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const h = hex.trim().replace(/^0x/i, '').toLowerCase()
+  if (h.length % 2) throw new Error('invalid hex')
+  const out = new Uint8Array(h.length / 2)
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16)
+  return out
+}
+
+/** Bitcoin txid (not wtxid): hash256 of the no-witness serialization, byte-reversed. */
+export function txidFromRawHex(rawHex: string): string {
+  const raw = hexToBytes(rawHex)
+  let i = 0
+  const vi = () => {
+    const n = raw[i++]
+    if (n < 0xfd) return n
+    if (n === 0xfd) {
+      const v = raw[i] | (raw[i + 1] << 8)
+      i += 2
+      return v
+    }
+    if (n === 0xfe) {
+      const v = raw[i] | (raw[i + 1] << 8) | (raw[i + 2] << 16) | (raw[i + 3] << 24)
+      i += 4
+      return v >>> 0
+    }
+    throw new Error('unsupported varint')
+  }
+  i = 4
+  let segwit = false
+  if (raw[i] === 0x00 && raw[i + 1] === 0x01) {
+    segwit = true
+    i += 2
+  }
+  const vinStart = i
+  const nIn = vi()
+  for (let k = 0; k < nIn; k++) {
+    i += 36
+    const sl = vi()
+    i += sl + 4
+  }
+  const nOut = vi()
+  for (let k = 0; k < nOut; k++) {
+    i += 8
+    const sl = vi()
+    i += sl
+  }
+  const vinVout = raw.slice(vinStart, i)
+  if (segwit) {
+    for (let k = 0; k < nIn; k++) {
+      const nStack = vi()
+      for (let s = 0; s < nStack; s++) {
+        const l = vi()
+        i += l
+      }
+    }
+  }
+  const locktime = raw.slice(i, i + 4)
+  if (locktime.length !== 4) throw new Error('truncated bitcoin tx')
+  const stripped = new Uint8Array(4 + vinVout.length + 4)
+  stripped.set(raw.slice(0, 4), 0)
+  stripped.set(vinVout, 4)
+  stripped.set(locktime, 4 + vinVout.length)
+  const digest = sha256(sha256(stripped))
+  let out = ''
+  for (let j = digest.length - 1; j >= 0; j--) out += digest[j].toString(16).padStart(2, '0')
+  return out
+}
+
 export async function pegOutPlBtc(opts: {
   account: string
   falconSecret: string
@@ -348,57 +482,105 @@ export async function pegOutPlBtc(opts: {
   if (!/^[0-9a-f]{64}$/.test(destSecret)) {
     throw new Error('Bitcoin dest key missing — open Multi-chain BTC')
   }
-  const snap = await accountSnap(opts.account, opts.network)
-  if (snap.btcSats < amount) {
-    throw new Error(`Insufficient FBTC (have ${(snap.btcSats / 1e8).toFixed(8)})`)
+  let pending = loadPendingBtcPegOut(opts.account)
+  if (btcPegOutConflicts(pending, amount, dest)) {
+    throw new Error(
+      `A BTC bridge-out of ${pending!.amount} sats to ${pending!.dest.slice(0, 12)}… is still pending. ` +
+        'Press Bridge out with that same amount and address to resume it — do not start a new burn.',
+    )
   }
-  if (snap.balance < FEE) throw new Error(`Need ${FEE} FPL for the withdraw fee`)
 
-  opts.onStep?.('Burning FBTC (no FROST Kickoff)…')
-  const tx = await signRailWithdraw({
-    account: opts.account,
-    sequence: snap.sequence,
-    asset: RAIL,
-    amount,
-    externalTo: dest,
-    falconSecret: opts.falconSecret,
-  })
-  await postTx(tx, opts.network)
-  await waitSeq(opts.account, opts.network, snap.sequence + 1)
-
-  opts.onStep?.('Signing dest-lock Kickoff (claimer CHECKSIG)…')
-  const kick = await fetch('/api/wallet/pl', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'btc-kickoff',
+  const snap = await accountSnap(opts.account, opts.network)
+  let burnTxId: string
+  if (pending) {
+    opts.onStep?.('Resuming pending BTC bridge-out (no new burn)…')
+    burnTxId = pending.burnTxId
+    if (snap.sequence <= pending.sequence && pending.rawJson) {
+      try {
+        await postTx(JSON.parse(pending.rawJson), opts.network)
+      } catch {
+        /* duplicate / already in mempool is fine */
+      }
+    }
+  } else {
+    if (snap.btcSats < amount) {
+      throw new Error(`Insufficient FBTC (have ${(snap.btcSats / 1e8).toFixed(8)})`)
+    }
+    if (snap.balance < FEE) throw new Error(`Need ${FEE} FPL for the withdraw fee`)
+    opts.onStep?.('Burning FBTC (no FROST Kickoff)…')
+    const tx = await signRailWithdraw({
+      account: opts.account,
+      sequence: snap.sequence,
+      asset: RAIL,
+      amount,
+      externalTo: dest,
+      falconSecret: opts.falconSecret,
+    })
+    pending = {
       account: opts.account,
       amount,
       dest,
-    }),
-  })
-  const kickJ = (await kick.json()) as {
-    error?: string
-    signed_btc_tx?: string
-    amount?: number
-    utxo?: string
+      network: opts.network,
+      sequence: snap.sequence,
+      burnTxId: tx.tx_id,
+      rawJson: tx.rawJson,
+      at: Date.now(),
+    }
+    savePendingBtcPegOut(pending)
+    await postTx(tx, opts.network)
+    burnTxId = tx.tx_id
   }
-  if (!kick.ok || !kickJ.signed_btc_tx) {
-    throw new Error(kickJ.error || 'Dest-lock Kickoff failed')
+
+  if (snap.sequence <= pending.sequence) {
+    await waitSeq(opts.account, opts.network, pending.sequence + 1)
+  }
+
+  let kickHex = pending.kickoffHex || ''
+  let kickAmount = pending.kickoffAmount
+  if (!kickHex) {
+    opts.onStep?.('Signing dest-lock Kickoff (claimer CHECKSIG)…')
+    const kick = await fetch('/api/wallet/pl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'btc-kickoff',
+        account: opts.account,
+        amount,
+        dest,
+      }),
+    })
+    const kickJ = (await kick.json()) as {
+      error?: string
+      signed_btc_tx?: string
+      amount?: number
+      utxo?: string
+    }
+    if (!kick.ok || !kickJ.signed_btc_tx) {
+      throw new Error(kickJ.error || 'Dest-lock Kickoff failed')
+    }
+    kickHex = kickJ.signed_btc_tx
+    kickAmount = kickJ.amount
+    pending = { ...pending, kickoffHex: kickHex, kickoffAmount: kickAmount }
+    savePendingBtcPegOut(pending)
   }
 
   const { broadcastBtcTx } = await import('@/lib/btc-client')
-  opts.onStep?.('Broadcasting dest-lock Kickoff to Bitcoin testnet…')
-  let kickoffTxid = ''
-  try {
-    kickoffTxid = (await broadcastBtcTx(kickJ.signed_btc_tx, 'testnet')).trim()
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    if (/already|exists|txn-already/i.test(msg)) {
-      opts.onStep?.('Kickoff already in mempool…')
-    } else {
-      throw new Error(`Kickoff broadcast failed: ${msg}`)
+  let kickoffTxid = pending.kickoffTxid || ''
+  if (!kickoffTxid) {
+    opts.onStep?.('Broadcasting dest-lock Kickoff to Bitcoin testnet…')
+    try {
+      kickoffTxid = (await broadcastBtcTx(kickHex, 'testnet')).trim()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (/already|exists|txn-already/i.test(msg)) {
+        kickoffTxid = txidFromRawHex(kickHex)
+        opts.onStep?.('Kickoff already in mempool…')
+      } else {
+        throw new Error(`Kickoff broadcast failed: ${msg}`)
+      }
     }
+    pending = { ...pending, kickoffTxid }
+    savePendingBtcPegOut(pending)
   }
 
   const { pollSpvConfirmations } = await import('@/lib/btc-spv-pending')
@@ -423,7 +605,7 @@ export async function pegOutPlBtc(opts: {
     )
   }
 
-  const claimSats = Number(kickJ.amount ?? amount)
+  const claimSats = Number(kickAmount ?? amount)
   opts.onStep?.('Dest take after CSV…')
   const take = await fetch('/api/wallet/pl', {
     method: 'POST',
@@ -449,5 +631,6 @@ export async function pegOutPlBtc(opts: {
       /* coordinator may have broadcast */
     }
   }
-  return { txId: tx.tx_id, kickoffTxid, takeTxid }
+  clearPendingBtcPegOut(opts.account)
+  return { txId: burnTxId, kickoffTxid, takeTxid }
 }

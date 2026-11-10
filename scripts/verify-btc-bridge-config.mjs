@@ -30,8 +30,15 @@ const reserveSpk = String(reserve.hold_script_pubkey || '').toLowerCase()
 const bridgeAddr = String(bridge.watch_address || '').toLowerCase()
 const reserveAddr = String(reserve.hold_address || '').toLowerCase()
 
-if (!bridgeHash || bridgeHash.length !== 64) errors.push('btc-spv-bridge.json missing watch_script_hash')
-if (bridgeHash && reserveHash && bridgeHash !== reserveHash) {
+// Current 2300 rail identifies the watch output by payment_script_hex (P2TR)
+// plus watch_address. watch_script_hash is a legacy reserve-field and is
+// optional; do not invent one. Require a hash only when no P2TR script is set.
+const p2tr = /^5120[0-9a-f]{64}$/.test(bridgeSpk)
+const hasHash = /^[0-9A-F]{64}$/.test(bridgeHash)
+if (!hasHash && !p2tr) {
+  errors.push('btc-spv-bridge.json needs payment_script_hex (P2TR 5120…) or watch_script_hash')
+}
+if (hasHash && reserveHash && bridgeHash !== reserveHash) {
   errors.push(`watch_script_hash mismatch bridge=${bridgeHash} reserve=${reserveHash}`)
 }
 if (bridgeSpk && reserveSpk && bridgeSpk !== reserveSpk) {
@@ -89,6 +96,7 @@ if (errors.length) {
 
 console.log('verify-btc-bridge-config OK')
 console.log('  watch_address', bridge.watch_address)
-console.log('  watch_script_hash', bridgeHash)
+console.log('  payment_script_hex', bridgeSpk || '(none)')
+if (bridgeHash) console.log('  watch_script_hash', bridgeHash)
 if (onChainHash) console.log('  on-chain match', onChainHash)
 process.exit(0)
