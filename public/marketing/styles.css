@@ -175,6 +175,25 @@ button { font: inherit; border: none; background: none; cursor: pointer; color: 
   color: var(--accent-bright) !important;
 }
 
+/* Shop — gold outline pill with a bag icon, so it stands out from plain links */
+.nav-shop {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem !important;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+  transition: background var(--transition), box-shadow var(--transition), color var(--transition) !important;
+}
+.nav-shop:hover {
+  background: var(--accent-dim);
+  box-shadow: 0 0 20px var(--accent-glow);
+  color: var(--accent-bright) !important;
+}
+.nav-shop-mobile { display: none; }
+
 .nav-toggle {
   display: none;
   flex-direction: column;
@@ -1250,6 +1269,15 @@ body.assets-final .media-slot-label { display: none; }
   :root { --header-h: 64px; }
 
   .nav-toggle { display: flex; }
+
+  .nav-shop-mobile {
+    display: inline-flex;
+    margin-left: auto;
+    margin-right: 0.75rem;
+    font-size: 0.85rem;
+    position: relative;
+    z-index: 2;
+  }
 
   .nav-menu {
     position: fixed;

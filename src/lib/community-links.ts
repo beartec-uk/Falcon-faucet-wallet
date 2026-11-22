@@ -4,6 +4,9 @@
 /** Canonical Discord invite (PR #46). Do not substitute expired codes. */
 export const DISCORD_INVITE_URL = 'https://discord.gg/rP7M5fG9ja'
 
+/** Falcon PL merch shop (Falcon-themed BearTec shop until falcon-fpl.com has its own /shop). */
+export const SHOP_URL = 'https://www.beartec.uk/shop?theme=falcon'
+
 export type CommunitySocial = {
   id: string
   name: string
