@@ -4,7 +4,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { DISCORD_INVITE_URL } from '@/lib/community-links'
+import { DISCORD_INVITE_URL, SHOP_URL } from '@/lib/community-links'
 
 /**
  * Marketing homepage for Falcon PL (falcon-fpl.com root).
@@ -52,6 +52,13 @@ export default function MarketingHomePage() {
               style={{ height: 36, width: 'auto' }}
             />
           </Link>
+          <a href={SHOP_URL} className="nav-shop nav-shop-mobile" data-testid="nav-shop-mobile">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M6 7h12l-1 13H7L6 7Z" strokeLinejoin="round" />
+              <path d="M9 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
+            </svg>
+            Shop
+          </a>
           <button
             className="nav-toggle"
             type="button"
@@ -75,6 +82,15 @@ export default function MarketingHomePage() {
             </li>
             <li>
               <a href="#built-differently">Why Falcon</a>
+            </li>
+            <li>
+              <a href={SHOP_URL} className="nav-shop" data-testid="nav-shop">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M6 7h12l-1 13H7L6 7Z" strokeLinejoin="round" />
+                  <path d="M9 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
+                </svg>
+                Shop
+              </a>
             </li>
             <li>
               <Link href="/wallet" className="nav-cta">

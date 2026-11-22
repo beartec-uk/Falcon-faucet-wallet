@@ -27,6 +27,7 @@ const ROUTES: [string, number][] = [
   ['/terms-of-use', 0.3],
   ['/privacy', 0.3],
   ['/feedback', 0.5],
+  ['/shop', 0.6],
   ['/community/learn', 0.7],
   ['/community/learn/post-quantum-blockchain', 0.8],
   ['/community/validators/run-a-node', 0.8],

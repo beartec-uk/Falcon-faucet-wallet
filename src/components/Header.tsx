@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 import { useNetwork } from '@/components/NetworkProvider'
 import NetworkSwitcher from '@/components/NetworkSwitcher'
 import { useEmbeddedFace } from '@/components/EmbeddedFace'
+import { SHOP_URL } from '@/lib/community-links'
 
 type NavItem =
   | 'faucet'
@@ -22,6 +23,7 @@ type NavItem =
   | 'arcade'
   | 'whitepaper'
   | 'first35'
+  | 'shop'
 
 interface HeaderProps {
   current: NavItem
@@ -47,6 +49,7 @@ const NAV_ITEMS: { key: NavItem; label: string; href: string }[] = [
   { key: 'wallet', label: 'Wallet', href: '/wallet' },
   { key: 'arcade', label: 'Arcade', href: '/arcade' },
   { key: 'airdrop', label: 'Airdrop', href: '/airdrop' },
+  { key: 'shop', label: 'Shop', href: SHOP_URL },
   { key: 'community', label: 'Community', href: '/community' },
   { key: 'whitepaper', label: 'Whitepaper', href: '/whitepaper' },
 ]
@@ -216,7 +219,9 @@ function HeaderInner({
                     ? 'Arcade · Game Faucet'
                     : current === 'whitepaper'
                       ? 'White paper'
-                      : 'Faucet')
+                      : current === 'shop'
+                        ? 'Shop · Falcon merch'
+                        : 'Faucet')
 
   return (
     <header
@@ -252,6 +257,17 @@ function HeaderInner({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <a
+            href={SHOP_URL}
+            data-testid="header-shop"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-brand-500/60 bg-brand-500/10 text-brand-500 text-sm font-semibold hover:bg-brand-500/20 hover:text-brand-400 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4" aria-hidden="true">
+              <path d="M6 7h12l-1 13H7L6 7Z" strokeLinejoin="round" />
+              <path d="M9 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
+            </svg>
+            Shop
+          </a>
           <NetworkSwitcher compact />
           <button
             type="button"
@@ -313,6 +329,18 @@ function HeaderInner({
       {/* Mobile — full vertical menu (all tabs always visible) */}
       {menuOpen && (
         <div className="sm:hidden mt-3 pt-3 border-t border-slate-800/60">
+          <a
+            href={SHOP_URL}
+            onClick={() => setMenuOpen(false)}
+            data-testid="mobile-menu-shop"
+            className="mb-3 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-brand-500/60 bg-brand-500/10 text-brand-500 font-semibold text-sm hover:bg-brand-500/20 transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M6 7h12l-1 13H7L6 7Z" strokeLinejoin="round" />
+              <path d="M9 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
+            </svg>
+            Shop · Falcon merch
+          </a>
           <NavLinks
             current={current}
             onNavigate={() => setMenuOpen(false)}
