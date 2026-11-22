@@ -156,3 +156,76 @@
     animation: none;
   }
 }
+
+/* Shop launch promo ------------------------------------------------------- */
+/* Marketing home: its header is position:fixed, so drop it below the announcement bar
+   until the page scrolls (main.js adds .scrolled past 24px). */
+html.has-shop-bar .marketing-root .site-header:not(.scrolled) {
+  top: 2.25rem;
+}
+.marketing-root .shop-promo-text {
+  margin: 1rem auto 0;
+  max-width: 36rem;
+  color: var(--text-muted, #94a3b8);
+}
+.marketing-root .shop-promo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  max-width: 56rem;
+  margin: 0 auto;
+}
+@media (min-width: 768px) {
+  .marketing-root .shop-promo-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.marketing-root .shop-promo-item {
+  margin: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(192, 120, 56, 0.3);
+  background: rgba(20, 12, 5, 0.6);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.marketing-root .shop-promo-item:hover {
+  border-color: rgba(212, 146, 42, 0.7);
+  transform: translateY(-2px);
+}
+.marketing-root .shop-promo-item img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+.marketing-root .shop-promo-item figcaption {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.marketing-root .shop-promo-fallback {
+  text-align: center;
+  color: #cbd5e1;
+}
+.marketing-root .shop-promo-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
+.nav-new-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #d4922a;
+  color: #1a0f04;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}

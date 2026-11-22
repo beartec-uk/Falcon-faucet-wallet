@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { DISCORD_INVITE_URL, SHOP_URL } from '@/lib/community-links'
+import ShopPromoSection from '@/components/ShopPromoSection'
 
 /**
  * Marketing homepage for Falcon PL (falcon-fpl.com root).
@@ -58,6 +59,7 @@ export default function MarketingHomePage() {
               <path d="M9 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
             </svg>
             Shop
+            <span className="nav-new-badge">New</span>
           </a>
           <button
             className="nav-toggle"
@@ -90,6 +92,7 @@ export default function MarketingHomePage() {
                   <path d="M9 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
                 </svg>
                 Shop
+                <span className="nav-new-badge">New</span>
               </a>
             </li>
             <li>
@@ -383,6 +386,8 @@ export default function MarketingHomePage() {
             </div>
           </div>
         </section>
+
+        <ShopPromoSection />
 
         {/* CTA */}
         <section className="section section-cta" id="cta">

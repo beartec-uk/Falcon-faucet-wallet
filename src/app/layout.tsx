@@ -4,6 +4,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google'
 import Script from 'next/script'
 import { headers } from 'next/headers'
 import Providers from '@/components/Providers'
+import ShopAnnouncementBar from '@/components/ShopAnnouncementBar'
 import { SITE_NAME, SITE_URL } from '@/lib/seo'
 import './globals.css'
 
@@ -86,7 +87,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body className="min-h-screen flex flex-col">
-        <Providers>{children}</Providers>
+        <Providers>
+          <ShopAnnouncementBar />
+          {children}
+        </Providers>
         {/* Register service worker for PWA */}
         <Script id="sw-register" strategy="afterInteractive" nonce={nonce}>
           {process.env.NEXT_PUBLIC_DISABLE_SW === '1'
