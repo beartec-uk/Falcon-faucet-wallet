@@ -142,9 +142,12 @@ function NavLinks({
             id={`nav-item-${item.key}`}
             href={item.href}
             onClick={onNavigate}
-            className={`${itemClass} text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors text-sm`}
+            className={`${itemClass} ${
+              item.key === 'shop' ? 'text-brand-500 font-medium' : 'text-slate-400'
+            } hover:text-slate-100 hover:bg-slate-800 transition-colors text-sm`}
           >
             {item.label}
+            {item.key === 'shop' ? <span className="nav-new-badge">New</span> : null}
           </Link>
         )
   }
@@ -267,6 +270,7 @@ function HeaderInner({
               <path d="M9 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
             </svg>
             Shop
+            <span className="nav-new-badge">New</span>
           </a>
           <NetworkSwitcher compact />
           <button
@@ -340,6 +344,7 @@ function HeaderInner({
               <path d="M9 9V6a3 3 0 0 1 6 0v3" strokeLinecap="round" />
             </svg>
             Shop · Falcon merch
+            <span className="nav-new-badge">New</span>
           </a>
           <NavLinks
             current={current}
