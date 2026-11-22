@@ -23,6 +23,7 @@ type NavItem =
   | 'arcade'
   | 'whitepaper'
   | 'first35'
+  | 'shop'
 
 interface HeaderProps {
   current: NavItem
@@ -48,6 +49,7 @@ const NAV_ITEMS: { key: NavItem; label: string; href: string }[] = [
   { key: 'wallet', label: 'Wallet', href: '/wallet' },
   { key: 'arcade', label: 'Arcade', href: '/arcade' },
   { key: 'airdrop', label: 'Airdrop', href: '/airdrop' },
+  { key: 'shop', label: 'Shop', href: SHOP_URL },
   { key: 'community', label: 'Community', href: '/community' },
   { key: 'whitepaper', label: 'Whitepaper', href: '/whitepaper' },
 ]
@@ -217,7 +219,9 @@ function HeaderInner({
                     ? 'Arcade · Game Faucet'
                     : current === 'whitepaper'
                       ? 'White paper'
-                      : 'Faucet')
+                      : current === 'shop'
+                        ? 'Shop · Falcon merch'
+                        : 'Faucet')
 
   return (
     <header
