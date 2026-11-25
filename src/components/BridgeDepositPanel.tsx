@@ -58,6 +58,13 @@ import {
 } from '@/lib/tn4-bridge'
 import { operatorCapacityFromFeed } from '@/lib/btc-operator-capacity'
 import { tn4DepositStatusView } from '@/lib/tn4-deposit-status'
+import {
+  isTn4ActionRequired,
+  isTn4Dismissible,
+  mergeTn4Deposits,
+  selectActiveTn4Deposits,
+  selectDoneTn4Deposits,
+} from '@/lib/tn4-active-bridges'
 import { signRailWithdraw } from '@/lib/pl-wallet-sign'
 import {
   BTC_DEPOSITS_ENABLED,
@@ -398,6 +405,19 @@ export default function BridgeDepositPanel({
   const dismissTn4Deposit = useCallback((id: string) => {
     setDismissedTn4Ids((prev) => {
       const next = prev.includes(id) ? prev : [...prev, id]
+      try {
+        localStorage.setItem('fpl-tn4-dismissed', JSON.stringify(next))
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [])
+
+  const undismissTn4Deposit = useCallback((id: string) => {
+    setDismissedTn4Ids((prev) => {
+      if (!prev.includes(id)) return prev
+      const next = prev.filter((x) => x !== id)
       try {
         localStorage.setItem('fpl-tn4-dismissed', JSON.stringify(next))
       } catch {
@@ -2410,7 +2430,7 @@ const handleSpvCompleteClaim = async () => {
     if (!falconId) return
     try {
       const list = await listDeposits(falconId)
-      setTn4Deposits(list)
+      setTn4Deposits((prev) => mergeTn4Deposits(prev, list))
       const cachedPk = btcPkRef.current
       if (cachedPk) {
         for (const d of list) {
@@ -2433,7 +2453,8 @@ const handleSpvCompleteClaim = async () => {
                   /* ignore */
                 }
                 const updated = await postSignatures(d.id, sigs)
-                setTn4Deposits((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+                undismissTn4Deposit(updated.id)
+                setTn4Deposits((prev) => mergeTn4Deposits(prev, [updated]))
               } catch {
                 tn4AutoSignRef.current.delete(d.id)
               }
@@ -2444,7 +2465,7 @@ const handleSpvCompleteClaim = async () => {
     } catch {
       /* ignore transient intake errors */
     }
-  }, [falconId])
+  }, [falconId, undismissTn4Deposit])
 
   const [tn4OpCap, setTn4OpCap] = useState<{ maxSingleBtc: number; totalBtc: number; onlineCount: number } | null>(null)
 
@@ -2523,7 +2544,7 @@ const handleSpvCompleteClaim = async () => {
         funding: `${sent.txid}:0`,
         funding_sats: Math.round(sendBtcAmt * 1e8),
       }
-      setTn4Deposits((prev) => [seeded, ...prev.filter((x) => x.id !== dep.id)])
+      setTn4Deposits((prev) => mergeTn4Deposits(prev, [seeded]))
       setAmount('')
       setTn4Msg('Bridge in started.')
       if (wallet.btcAddress) {
@@ -2569,7 +2590,8 @@ const handleSpvCompleteClaim = async () => {
         /* ignore quota errors */
       }
       const updated = await postSignatures(dep.id, sigs)
-      setTn4Deposits((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))
+      undismissTn4Deposit(updated.id)
+      setTn4Deposits((prev) => mergeTn4Deposits(prev, [updated]))
     } catch (e: unknown) {
       setError(formatBridgeError(e, 'Signing failed'))
     } finally {
@@ -2773,16 +2795,8 @@ const handleSpvCompleteClaim = async () => {
         {(() => {
           const openDest = destLockJobs.filter((j) => j.status !== 'done')
           const doneDest = destLockJobs.filter((j) => j.status === 'done')
-          const activeTn4 = tn4Deposits.filter(
-            (d) =>
-              d.state !== 'expired' &&
-              d.state !== 'failed' &&
-              d.state !== 'minted' &&
-              !dismissedTn4Ids.includes(d.id),
-          )
-          const doneTn4 = tn4Deposits.filter(
-            (d) => d.state === 'minted' && !dismissedTn4Ids.includes(d.id),
-          )
+          const activeTn4 = selectActiveTn4Deposits(tn4Deposits, dismissedTn4Ids)
+          const doneTn4 = selectDoneTn4Deposits(tn4Deposits, dismissedTn4Ids)
           const openBtc = !isPl2300 && spvPending && spvPending.status !== 'claimed' ? spvPending : null
           const doneBtc = !isPl2300 && spvPending?.status === 'claimed' ? spvPending : null
           const openN = openDest.length + activeTn4.length + (openBtc ? 1 : 0)
@@ -2888,13 +2902,17 @@ const handleSpvCompleteClaim = async () => {
                               {tn4Busy === `sign:${d.id}` ? 'Confirming…' : 'Confirm'}
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => dismissTn4Deposit(d.id)}
-                            className="text-xs text-slate-500 hover:text-slate-300 shrink-0"
-                          >
-                            Dismiss
-                          </button>
+                          {isTn4Dismissible(d) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!isTn4ActionRequired(d)) dismissTn4Deposit(d.id)
+                              }}
+                              className="text-xs text-slate-500 hover:text-slate-300 shrink-0"
+                            >
+                              Dismiss
+                            </button>
+                          )}
                         </div>
                       </div>
                       {status.explorerHref && status.explorerLabel ? (
