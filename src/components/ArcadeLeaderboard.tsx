@@ -37,6 +37,8 @@ interface LeaderboardApiResponse {
   historyDates?: {
     scoresSince: string
     plAndRunSumSince: string
+    lifetimeTotalSince?: string
+    lifetimeTotalSinceIso?: string
   }
   airdropSummary?: AirdropArcadeSummary
   overallEntries?: OverallAirdropEntry[]
@@ -253,7 +255,7 @@ export default function ArcadeLeaderboard() {
 
         {/* Overall Airdrop Total Summary Cards (All-time mode) */}
         {period === 'all' && summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-800/80">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-slate-800/80">
             <div className="rounded-xl bg-slate-950/70 border border-slate-800/80 px-3 py-2.5">
               <div className="text-[11px] text-slate-500">Airdrop Players</div>
               <div className="text-base sm:text-lg font-mono font-semibold text-white tabular-nums">
@@ -282,6 +284,15 @@ export default function ArcadeLeaderboard() {
               </div>
             </div>
             <div className="rounded-xl bg-slate-950/70 border border-slate-800/80 px-3 py-2.5">
+              <div className="text-[11px] text-slate-500">Lifetime Total</div>
+              <div className="text-base sm:text-lg font-mono font-semibold text-sky-300 tabular-nums">
+                {(summary.totalLifetimeScore ?? 0).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-slate-500">
+                Tracked since 25 Nov 2026
+              </div>
+            </div>
+            <div className="col-span-2 sm:col-span-1 rounded-xl bg-slate-950/70 border border-slate-800/80 px-3 py-2.5">
               <div className="text-[11px] text-slate-500">Runs · Claims</div>
               <div className="text-base sm:text-lg font-mono font-semibold text-slate-200 tabular-nums">
                 {summary.totalRuns.toLocaleString()} ·{' '}
@@ -358,10 +369,16 @@ export default function ArcadeLeaderboard() {
           ) : (
             <div>
               <div className="hidden sm:grid sm:grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800/80 bg-slate-950/50">
-                <div className="col-span-4">Player (PL Account)</div>
+                <div className="col-span-3">Player (PL Account)</div>
                 <div className="col-span-2 text-right">Airdrop Pts</div>
                 <div className="col-span-2 text-right">Earned Run Pts</div>
-                <div className="col-span-2 text-right">Best Run</div>
+                <div className="col-span-2 text-right">
+                  Lifetime Total
+                  <div className="text-[9px] font-normal normal-case tracking-normal text-slate-400">
+                    since 25 Nov 2026
+                  </div>
+                </div>
+                <div className="col-span-1 text-right">Best</div>
                 <div className="col-span-2 text-right">Days · Games</div>
               </div>
               <ol className="divide-y divide-slate-800/80">
@@ -371,7 +388,7 @@ export default function ArcadeLeaderboard() {
                     className="px-4 py-3 hover:bg-slate-800/30 transition-colors"
                   >
                     <div className="sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 space-y-1.5 sm:space-y-0">
-                      <div className="sm:col-span-4 flex items-center justify-between sm:justify-start gap-2.5 min-w-0">
+                      <div className="sm:col-span-3 flex items-center justify-between sm:justify-start gap-2.5 min-w-0">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-slate-500 font-mono text-xs sm:text-sm w-6 shrink-0">
                             #{e.rank}
@@ -399,7 +416,11 @@ export default function ArcadeLeaderboard() {
                         {e.earnedPoints.toLocaleString()}
                       </div>
 
-                      <div className="hidden sm:block sm:col-span-2 text-right font-mono text-sm text-slate-200 tabular-nums">
+                      <div className="hidden sm:block sm:col-span-2 text-right font-mono text-sm text-sky-300 tabular-nums">
+                        {(e.lifetimeTotal ?? 0).toLocaleString()}
+                      </div>
+
+                      <div className="hidden sm:block sm:col-span-1 text-right font-mono text-sm text-slate-200 tabular-nums">
                         {e.bestScore.toLocaleString()}
                       </div>
 
@@ -411,6 +432,9 @@ export default function ArcadeLeaderboard() {
                       <div className="sm:hidden flex flex-wrap items-center gap-x-3 gap-y-1 pl-8 text-[11px] text-slate-400 font-mono tabular-nums">
                         <span className="text-emerald-400">
                           Earned {e.earnedPoints.toLocaleString()}
+                        </span>
+                        <span className="text-sky-300">
+                          Lifetime {(e.lifetimeTotal ?? 0).toLocaleString()} (since 25 Nov 2026)
                         </span>
                         <span>Best {e.bestScore.toLocaleString()}</span>
                         <span>
@@ -433,10 +457,16 @@ export default function ArcadeLeaderboard() {
         ) : (
           <div>
             <div className="hidden sm:grid sm:grid-cols-12 gap-2 px-4 py-2.5 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800/80 bg-slate-950/50">
-              <div className="col-span-5">Player</div>
+              <div className="col-span-4">Player</div>
               <div className="col-span-2 text-right">Earned Run Pts</div>
+              <div className="col-span-2 text-right">
+                Lifetime Total
+                <div className="text-[9px] font-normal normal-case tracking-normal text-slate-400">
+                  since 25 Nov 2026
+                </div>
+              </div>
               <div className="col-span-2 text-right">Best Run</div>
-              <div className="col-span-3 text-right">Days · Runs · Claims</div>
+              <div className="col-span-2 text-right">Days · Runs · Claims</div>
             </div>
             <ol className="divide-y divide-slate-800/80">
               {gameEntries.map((e) => (
@@ -445,7 +475,7 @@ export default function ArcadeLeaderboard() {
                   className="px-4 py-3 hover:bg-slate-800/30 transition-colors"
                 >
                   <div className="sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 space-y-1.5 sm:space-y-0">
-                    <div className="sm:col-span-5 flex items-center justify-between sm:justify-start gap-2 min-w-0">
+                    <div className="sm:col-span-4 flex items-center justify-between sm:justify-start gap-2 min-w-0">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="text-slate-500 font-mono text-xs sm:text-sm w-6 shrink-0">
                           #{e.rank}
@@ -479,18 +509,29 @@ export default function ArcadeLeaderboard() {
                       {e.legacyOnly ? '—' : e.earnedPoints.toLocaleString()}
                     </div>
 
+                    <div className="hidden sm:block sm:col-span-2 text-right font-mono text-sm text-sky-300 tabular-nums">
+                      {e.legacyOnly && (e.lifetimeTotal ?? 0) === 0
+                        ? '—'
+                        : (e.lifetimeTotal ?? 0).toLocaleString()}
+                    </div>
+
                     <div className="hidden sm:block sm:col-span-2 text-right font-mono text-sm text-brand-400 tabular-nums">
                       {e.bestScore.toLocaleString()}
                     </div>
 
-                    <div className="hidden sm:block sm:col-span-3 text-right font-mono text-xs text-slate-300 tabular-nums">
+                    <div className="hidden sm:block sm:col-span-2 text-right font-mono text-xs text-slate-300 tabular-nums">
                       {e.playDays}d · {e.runs}r · {e.claims}c
                     </div>
 
                     {/* Mobile compact stats line */}
                     <div className="sm:hidden flex flex-wrap items-center gap-x-3 gap-y-1 pl-8 text-[11px] text-slate-400 font-mono tabular-nums">
                       {!e.legacyOnly && (
-                        <span>Best {e.bestScore.toLocaleString()}</span>
+                        <>
+                          <span className="text-sky-300">
+                            Lifetime {(e.lifetimeTotal ?? 0).toLocaleString()} (since 25 Nov 2026)
+                          </span>
+                          <span>Best {e.bestScore.toLocaleString()}</span>
+                        </>
                       )}
                       <span>{e.playDays} {e.playDays === 1 ? 'day' : 'days'}</span>
                       <span>{e.runs} {e.runs === 1 ? 'run' : 'runs'}</span>
@@ -517,7 +558,12 @@ export default function ArcadeLeaderboard() {
           ) started{' '}
           <span className="font-mono text-slate-300">{plSince} UTC</span>;
           earlier legacy <span className="font-mono">r…</span> rows retain
-          best-run scores only.
+          best-run scores only.{' '}
+          <span className="text-sky-300 font-medium">
+            Lifetime total — tracked since 25 Nov 2026
+          </span>{' '}
+          (<span className="font-mono text-slate-300">2026-11-25 04:39 UTC</span>)
+          accumulates uncapped run scores separately from the 500/run claim cap.
         </p>
         <p>
           Overall Airdrop scores (0–5 pts) use the same{' '}

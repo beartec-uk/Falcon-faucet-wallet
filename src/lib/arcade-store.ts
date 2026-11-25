@@ -83,6 +83,25 @@ export const EMPTY_RUN_STATE: RunProgressState = {
  * repeatedly during a run, so only the increase within a run is credited.
  * A new run is a different run id, or (legacy, no id) a score below the last.
  */
+/**
+ * Compute the uncapped delta to add to total_run_score for a reported score.
+ * Separate from the 500/run claim cap in applyRunScore, and never decremented on claims.
+ */
+export function computeUncappedRunDelta(
+  prev: Pick<RunProgressState, 'runs' | 'runId' | 'runScore'>,
+  scoreIn: number,
+  runIdIn: string,
+): number {
+  const score = Math.floor(Math.max(0, scoreIn))
+  const first = prev.runs === 0 && prev.runScore === 0 && prev.runId === ''
+  const newRun =
+    first ||
+    (runIdIn !== ''
+      ? runIdIn !== prev.runId
+      : prev.runId !== '' || score < prev.runScore)
+  return newRun ? score : Math.max(0, score - prev.runScore)
+}
+
 export function applyRunScore(
   prev: RunProgressState,
   scoreIn: number,
@@ -153,6 +172,7 @@ type ClaimKey = string // network|address|game|day
 const memScores = new Map<string, number>()
 const memClaims = new Map<string, number>() // count
 const memProgress = new Map<string, RunProgressState>()
+const memLifetimeScores = new Map<string, number>()
 const memPlAccounts = new Map<string, string>()
 
 function scoreKey(
@@ -196,6 +216,12 @@ async function ensureTables(): Promise<void> {
   await sql`ALTER TABLE arcade_scores ADD COLUMN IF NOT EXISTS run_score DOUBLE PRECISION NOT NULL DEFAULT 0`
   await sql`ALTER TABLE arcade_scores ADD COLUMN IF NOT EXISTS run_credit DOUBLE PRECISION NOT NULL DEFAULT 0`
   await sql`ALTER TABLE arcade_scores ADD COLUMN IF NOT EXISTS runs INTEGER NOT NULL DEFAULT 0`
+  await sql`ALTER TABLE arcade_scores ADD COLUMN IF NOT EXISTS total_run_score DOUBLE PRECISION NOT NULL DEFAULT 0`
+  await sql`
+    CREATE INDEX IF NOT EXISTS arcade_scores_pl_day_idx
+    ON arcade_scores (network, pl_account, day_utc)
+    WHERE pl_account IS NOT NULL
+  `
   await sql`
     CREATE INDEX IF NOT EXISTS arcade_scores_lb
     ON arcade_scores (network, game, day_utc, score DESC)
@@ -237,7 +263,7 @@ export async function upsertArcadeScore(opts: {
   dayUtc?: string
   /** Falcon PL account name of the player, when the wallet has one. */
   plAccount?: string
-}): Promise<{ best: number; improved: boolean; progress: number; runs: number }> {
+}): Promise<{ best: number; improved: boolean; progress: number; runs: number; totalRunScore: number }> {
   const day = opts.dayUtc ?? arcadeUtcDay()
   const score = Math.floor(Math.max(0, opts.score))
   const address = opts.address.trim()
@@ -252,12 +278,12 @@ export async function upsertArcadeScore(opts: {
       const rows = await sql`
         INSERT INTO arcade_scores (
           network, address, game, day_utc, score, pl_account,
-          progress, run_id, run_score, run_credit, runs
+          progress, run_id, run_score, run_credit, runs, total_run_score
         )
         VALUES (
           ${opts.network}, ${address}, ${opts.game}, ${day}::date, ${score},
           ${opts.plAccount ?? null},
-          ${credit}, ${runId}, ${score}, ${credit}, 1
+          ${credit}, ${runId}, ${score}, ${credit}, 1, ${score}
         )
         ON CONFLICT (network, address, game, day_utc)
         DO UPDATE SET
@@ -286,9 +312,15 @@ export async function upsertArcadeScore(opts: {
                        ELSE arcade_scores.run_id <> '' OR EXCLUDED.run_score < arcade_scores.run_score END)
             THEN 1 ELSE 0
           END,
+          total_run_score = arcade_scores.total_run_score + CASE
+            WHEN (CASE WHEN EXCLUDED.run_id <> '' THEN EXCLUDED.run_id <> arcade_scores.run_id
+                       ELSE arcade_scores.run_id <> '' OR EXCLUDED.run_score < arcade_scores.run_score END)
+            THEN EXCLUDED.run_score
+            ELSE GREATEST(0, EXCLUDED.run_score - arcade_scores.run_score)
+          END,
           run_id = EXCLUDED.run_id,
           updated_at = NOW()
-        RETURNING score, progress, runs
+        RETURNING score, progress, runs, total_run_score
       `
       const best = Number(rows[0]?.score ?? score)
       return {
@@ -296,6 +328,7 @@ export async function upsertArcadeScore(opts: {
         improved: best === score && score > 0,
         progress: Number(rows[0]?.progress ?? 0),
         runs: Number(rows[0]?.runs ?? 0),
+        totalRunScore: Number(rows[0]?.total_run_score ?? score),
       }
     } catch (e) {
       console.warn('[arcade-store] upsert db failed, using memory:', e)
@@ -307,9 +340,13 @@ export async function upsertArcadeScore(opts: {
   const best = Math.max(prev, score)
   memScores.set(k, best)
   if (opts.plAccount) memPlAccounts.set(k, opts.plAccount.trim())
-  const st = applyRunScore(memProgress.get(k) ?? EMPTY_RUN_STATE, score, runId)
+  const prevSt = memProgress.get(k) ?? EMPTY_RUN_STATE
+  const uncappedDelta = computeUncappedRunDelta(prevSt, score, runId)
+  const nextTotalRunScore = (memLifetimeScores.get(k) ?? 0) + uncappedDelta
+  memLifetimeScores.set(k, nextTotalRunScore)
+  const st = applyRunScore(prevSt, score, runId)
   memProgress.set(k, st)
-  return { best, improved: best > prev, progress: st.progress, runs: st.runs }
+  return { best, improved: best > prev, progress: st.progress, runs: st.runs, totalRunScore: nextTotalRunScore }
 }
 
 /** Accumulated claim progress for the day (since the last claim). */
@@ -891,6 +928,7 @@ export async function getAllTimeLeaderboard(opts: {
           s.score,
           s.progress,
           s.runs,
+          COALESCE(s.total_run_score, 0)::float AS total_run_score,
           COALESCE(c.finalized_claims, 0)::int AS finalized_claims
         FROM arcade_scores s
         LEFT JOIN claim_counts c
@@ -911,6 +949,7 @@ export async function getAllTimeLeaderboard(opts: {
         progress: Number(r.progress ?? 0),
         runs: Number(r.runs ?? 0),
         finalizedClaims: Number(r.finalized_claims ?? 0),
+        totalRunScore: Number(r.total_run_score ?? 0),
       }))
 
       return aggregateArcadeHistory(mapped, {
@@ -948,6 +987,7 @@ export async function getAllTimeLeaderboard(opts: {
       progress: st?.progress ?? 0,
       runs: st?.runs ?? 0,
       finalizedClaims: memClaims.get(k) ?? 0,
+      totalRunScore: memLifetimeScores.get(k) ?? 0,
     })
   }
 

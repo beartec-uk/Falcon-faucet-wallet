@@ -4,6 +4,12 @@ import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TRACKER_CONFIG } from '@/config/tracker'
 import {
+  computeUncappedRunDelta,
+  consumeClaimProgress,
+  getAllTimeLeaderboard,
+  upsertArcadeScore,
+} from '@/lib/arcade-store'
+import {
   ARCADE_HISTORY_DATES,
   aggregateArcadeHistory,
   computeArcadeAirdropPoints,
@@ -242,5 +248,101 @@ describe('unified /arcade#leaderboard routing & redirect', () => {
     expect(prizes).toContain('href="/arcade#leaderboard"')
     expect(prizes).not.toContain('/arcade/leaderboard')
     expect(sitemap).not.toContain('/arcade/leaderboard')
+  })
+})
+
+describe('uncapped lifetime run totals (total_run_score)', () => {
+  it('accumulates uncapped scores across runs > 500 while claims stay capped and airdrop stays unchanged', async () => {
+    expect(
+      computeUncappedRunDelta({ runs: 0, runId: '', runScore: 0 }, 120, 'r1'),
+    ).toBe(120)
+    expect(
+      computeUncappedRunDelta({ runs: 1, runId: 'r1', runScore: 120 }, 750, 'r1'),
+    ).toBe(630)
+    expect(
+      computeUncappedRunDelta({ runs: 1, runId: 'r1', runScore: 750 }, 750, 'r1'),
+    ).toBe(0)
+    expect(
+      computeUncappedRunDelta({ runs: 1, runId: 'r1', runScore: 750 }, 700, 'r1'),
+    ).toBe(0)
+    expect(
+      computeUncappedRunDelta({ runs: 1, runId: 'r1', runScore: 750 }, 1200, 'r2'),
+    ).toBe(1200)
+
+    const net = 'testnet-lifetime-test'
+    const addr = 'rLifetimeTestPlayer1'
+    const pl = 'lifetime.tester'
+    const day = '2026-11-25'
+
+    const s1 = await upsertArcadeScore({
+      network: net,
+      address: addr,
+      plAccount: pl,
+      game: 'falcon-flight',
+      score: 120,
+      runId: 'run-1',
+      dayUtc: day,
+    })
+    expect(s1.totalRunScore).toBe(120)
+    expect(s1.progress).toBe(120)
+
+    // Same run climbs past 500 -> progress caps at 500, lifetime stays uncapped at 750
+    const s2 = await upsertArcadeScore({
+      network: net,
+      address: addr,
+      plAccount: pl,
+      game: 'falcon-flight',
+      score: 750,
+      runId: 'run-1',
+      dayUtc: day,
+    })
+    expect(s2.totalRunScore).toBe(750)
+    expect(s2.progress).toBe(500)
+
+    // Claiming 500 decrements progress to 0, never touches totalRunScore
+    const claim = await consumeClaimProgress({
+      network: net,
+      address: addr,
+      game: 'falcon-flight',
+      amount: 500,
+      dayUtc: day,
+    })
+    expect(claim.ok).toBe(true)
+    expect(claim.progress).toBe(0)
+
+    // Second run scores 1,200 -> progress becomes 500, lifetime becomes 1,950
+    const s3 = await upsertArcadeScore({
+      network: net,
+      address: addr,
+      plAccount: pl,
+      game: 'falcon-flight',
+      score: 1200,
+      runId: 'run-2',
+      dayUtc: day,
+    })
+    expect(s3.totalRunScore).toBe(1950)
+    expect(s3.progress).toBe(500)
+    expect(s3.best).toBe(1200)
+
+    const board = await getAllTimeLeaderboard({
+      network: net,
+      now: Date.parse('2026-11-25T12:00:00Z'),
+    })
+    expect(board.overallEntries[0]?.account).toBe(pl)
+    expect(board.overallEntries[0]?.lifetimeTotal).toBe(1950)
+    expect(board.overallEntries[0]?.bestScore).toBe(1200)
+    expect(board.byGame['falcon-flight'][0]?.lifetimeTotal).toBe(1950)
+    expect(board.airdropSummary.totalLifetimeScore).toBe(1950)
+    expect(board.airdropSummary.lifetimeTotalSince).toBe('2026-11-25')
+  })
+
+  it('renders Lifetime Total column and 25 Nov 2026 tracking label on ArcadeLeaderboard', () => {
+    const ui = readFileSync(
+      join(process.cwd(), 'src/components/ArcadeLeaderboard.tsx'),
+      'utf8',
+    )
+    expect(ui).toContain('Lifetime Total')
+    expect(ui).toContain('since 25 Nov 2026')
+    expect(ui).toContain('Lifetime total — tracked since 25 Nov 2026')
   })
 })

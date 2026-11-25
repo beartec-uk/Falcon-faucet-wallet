@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
   // Sanity clamp anti-spam
   if (score > 1_000_000) score = 1_000_000
 
-  const { best, improved, progress, runs } = await upsertArcadeScore({
+  const { best, improved, progress, runs, totalRunScore } = await upsertArcadeScore({
     network: networkKey,
     address: account,
     game,
@@ -79,6 +79,7 @@ export async function POST(req: NextRequest) {
     improved,
     progress,
     runs,
+    totalRunScore,
     minScore: GAME_FAUCET_MIN_SCORE,
     canClaimByScore: progress >= GAME_FAUCET_MIN_SCORE,
     network: networkKey,

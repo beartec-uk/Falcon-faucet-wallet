@@ -12,6 +12,10 @@ export const ARCADE_HISTORY_DATES = {
   scoresSince: '2026-07-20',
   /** Earliest Falcon PL account-linked and run-sum (progress/runs) row. */
   plAndRunSumSince: '2026-10-18',
+  /** Date uncapped lifetime run-total tracking (total_run_score) started. */
+  lifetimeTotalSince: '2026-11-25',
+  /** Exact UTC timestamp the additive total_run_score column went live. */
+  lifetimeTotalSinceIso: '2026-11-25T04:39:42Z',
 } as const
 
 export interface ArcadePlayRecord {
@@ -74,6 +78,8 @@ export interface ArcadeHistoryRow {
   progress: number
   runs: number
   finalizedClaims: number
+  /** Uncapped cumulative run score tracked since 2026-11-25 UTC. */
+  totalRunScore?: number
 }
 
 export interface AllTimeGameEntry {
@@ -83,6 +89,8 @@ export interface AllTimeGameEntry {
   game: string
   /** Sum of run-credit points since 2026-10-18 UTC: unspent progress + finalized claims * minScore. */
   earnedPoints: number
+  /** Uncapped lifetime run-score sum tracked since 2026-11-25 UTC. */
+  lifetimeTotal: number
   /** Best single run across all stored days (since 2026-07-20 UTC). */
   bestScore: number
   /** Sum of daily best scores across distinct days. */
@@ -103,6 +111,8 @@ export interface OverallAirdropEntry {
   airdropCap: number
   /** All-time sum of run-credit points across all 4 games (progress + claims * minScore). */
   earnedPoints: number
+  /** Uncapped lifetime run-score sum across all 4 games tracked since 2026-11-25 UTC. */
+  lifetimeTotal: number
   /** Highest single run across all games. */
   bestScore: number
   /** Sum of best single run per game. */
@@ -123,10 +133,13 @@ export interface OverallAirdropEntry {
 export interface AirdropArcadeSummary {
   scoresSince: string
   plAndRunSumSince: string
+  lifetimeTotalSince: string
+  lifetimeTotalSinceIso: string
   airdropWindowSince: string
   totalPlayers: number
   totalAirdropPoints: number
   totalEarnedPoints: number
+  totalLifetimeScore: number
   totalRuns: number
   totalClaims: number
   totalBestScoreSum: number
@@ -162,6 +175,7 @@ export function aggregateArcadeHistory(
     plAccount: string | null
     game: string
     earnedPoints: number
+    lifetimeTotal: number
     bestScore: number
     sumDailyBest: number
     runs: number
@@ -202,6 +216,7 @@ export function aggregateArcadeHistory(
         plAccount: r.plAccount?.trim() || null,
         game: r.game,
         earnedPoints: 0,
+        lifetimeTotal: 0,
         bestScore: 0,
         sumDailyBest: 0,
         runs: 0,
@@ -218,6 +233,7 @@ export function aggregateArcadeHistory(
       acc.account = r.plAccount.trim()
     }
     acc.earnedPoints += rowEarned
+    acc.lifetimeTotal += Math.floor(Math.max(0, r.totalRunScore ?? 0))
     acc.bestScore = Math.max(acc.bestScore, Math.floor(Math.max(0, r.score)))
     acc.sumDailyBest += Math.floor(Math.max(0, r.score))
     acc.runs += Math.max(0, Math.floor(r.runs))
@@ -245,6 +261,7 @@ export function aggregateArcadeHistory(
         plAccount: a.plAccount,
         game: a.game,
         earnedPoints: a.earnedPoints,
+        lifetimeTotal: a.lifetimeTotal,
         bestScore: a.bestScore,
         sumDailyBest: a.sumDailyBest,
         runs: a.runs,
@@ -261,6 +278,7 @@ export function aggregateArcadeHistory(
     account: string
     plays: ArcadePlayRecord[]
     earnedPoints: number
+    lifetimeTotal: number
     bestByGame: Map<string, number>
     runs: number
     claims: number
@@ -282,6 +300,7 @@ export function aggregateArcadeHistory(
         account: pl,
         plays: [],
         earnedPoints: 0,
+        lifetimeTotal: 0,
         bestByGame: new Map(),
         runs: 0,
         claims: 0,
@@ -293,6 +312,7 @@ export function aggregateArcadeHistory(
     acc.earnedPoints +=
       Math.floor(Math.max(0, r.progress)) +
       Math.max(0, r.finalizedClaims) * opts.minScore
+    acc.lifetimeTotal += Math.floor(Math.max(0, r.totalRunScore ?? 0))
     acc.bestByGame.set(
       r.game,
       Math.max(acc.bestByGame.get(r.game) ?? 0, Math.floor(Math.max(0, r.score))),
@@ -339,6 +359,7 @@ export function aggregateArcadeHistory(
         airdropPoints: windowEval.points,
         airdropCap: TRACKER_CONFIG.caps.arcade,
         earnedPoints: acc.earnedPoints,
+        lifetimeTotal: acc.lifetimeTotal,
         bestScore,
         bestScoreSum,
         playDays: windowEval.playDays,
@@ -362,6 +383,7 @@ export function aggregateArcadeHistory(
   const totalAirdropPoints =
     Math.round(allOverall.reduce((s, e) => s + e.airdropPoints, 0) * 10) / 10
   const totalEarnedPoints = allOverall.reduce((s, e) => s + e.earnedPoints, 0)
+  const totalLifetimeScore = allOverall.reduce((s, e) => s + e.lifetimeTotal, 0)
   const totalRuns = allOverall.reduce((s, e) => s + e.runs, 0)
   const totalClaims = allOverall.reduce((s, e) => s + e.claims, 0)
   const totalBestScoreSum = allOverall.reduce((s, e) => s + e.bestScoreSum, 0)
@@ -376,10 +398,13 @@ export function aggregateArcadeHistory(
     airdropSummary: {
       scoresSince: ARCADE_HISTORY_DATES.scoresSince,
       plAndRunSumSince: ARCADE_HISTORY_DATES.plAndRunSumSince,
+      lifetimeTotalSince: ARCADE_HISTORY_DATES.lifetimeTotalSince,
+      lifetimeTotalSinceIso: ARCADE_HISTORY_DATES.lifetimeTotalSinceIso,
       airdropWindowSince: opts.airdropWindowSince,
       totalPlayers,
       totalAirdropPoints,
       totalEarnedPoints,
+      totalLifetimeScore,
       totalRuns,
       totalClaims,
       totalBestScoreSum,
