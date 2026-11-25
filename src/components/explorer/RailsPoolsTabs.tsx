@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import type { RailsPoolsPayload } from '@/lib/rails-pools-server'
 import type { PoolView, RailView, Transfer } from '@/lib/rails-pools'
 import { formatUnits } from '@/lib/pl-exact-json'
+import { explorerPoolLabel, explorerRailLabel, isLiveBitcoinAsset } from '@/lib/explorer-sot'
 import BridgeOperatorsPanel from '@/components/explorer/BridgeOperatorsPanel'
 
 export const C = { copper: '#C07838', gold: '#D4922A', bg: '#020617', panel: '#0F172A', cream: '#E0DBCA' }
@@ -132,12 +133,12 @@ function RailPanel({ r }: { r: RailView }) {
   const all = [...r.deposits.recent, ...r.withdrawals.list]
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Panel title={u === 'BTC' ? 'BTC bridge (Testnet4 BitVM2) — totals' : `${u} bridge — totals`}>
+      <Panel title={isLiveBitcoinAsset(u) ? 'BTC4 bridge (Testnet4 BitVM2, live) — totals' : `${u} bridge — totals`}>
         <div className="grid grid-cols-2 gap-4">
           <Stat k="Total minted" v={`${formatUnits(r.minted, r.decimals)} ${u}`} />
           <Stat k="Total burned" v={`${formatUnits(r.burned, r.decimals)} ${u}`} />
-          <Stat k={u === 'BTC' ? 'Locked in vault' : 'Outstanding (locked)'} v={u === 'BTC' && r.vault ? `${formatUnits(String(r.vault.sats), 8)} BTC` : `${formatUnits(r.outstanding, r.decimals)} ${u}`}
-            sub={u === 'BTC' && r.vault ? `${r.vault.utxos} UTXOs · outstanding ${formatUnits(r.outstanding, 8)} BTC` : 'minted − burned'} />
+          <Stat k={isLiveBitcoinAsset(u) ? 'Locked in vault' : 'Outstanding (locked)'} v={isLiveBitcoinAsset(u) && r.vault ? `${formatUnits(String(r.vault.sats), 8)} BTC4` : `${formatUnits(r.outstanding, r.decimals)} ${u}`}
+            sub={isLiveBitcoinAsset(u) && r.vault ? `${r.vault.utxos} UTXOs · outstanding ${formatUnits(r.outstanding, 8)} BTC4` : 'minted − burned'} />
           <Stat k="Deposits / withdrawals" v={`${fmt(r.deposits.processed, 0)} / ${fmt(r.withdrawals.list.length, 0)}`} sub={`${r.withdrawals.open} withdrawals open`} />
         </div>
       </Panel>
@@ -172,7 +173,7 @@ function RailPanel({ r }: { r: RailView }) {
           </div>
         )}
       </Panel>
-      {u === 'BTC' && (
+      {isLiveBitcoinAsset(u) && (
         <div className="lg:col-span-2">
           <BridgeOperatorsPanel lockedSats={Number(r.outstanding || r.vault?.sats || 0)} />
         </div>
@@ -195,12 +196,12 @@ function RailPanel({ r }: { r: RailView }) {
 
 export function RailsView() {
   const { d, err } = useRailsPools()
-  const [cur, setCur] = useState<'USDC' | 'ETH' | 'BTC'>('USDC')
+  const [cur, setCur] = useState<string>('USDC')
   if (!d) return <Status err={err} what="rails" />
   const r = d.rails.find((x) => x.asset === cur)
   return (
     <div>
-      <SubTabs items={d.rails.map((x) => ({ id: x.asset, label: x.asset === 'BTC' ? 'BTC (Testnet4 BitVM2)' : x.asset }))} cur={cur} set={setCur} />
+      <SubTabs items={d.rails.map((x) => ({ id: x.asset, label: explorerRailLabel(x.asset) }))} cur={cur} set={setCur} />
       {r && <RailPanel r={r} />}
       <Footer d={d} />
     </div>
@@ -252,9 +253,11 @@ function PoolPanel({ p }: { p: PoolView }) {
 }
 
 function poolLabel(p: PoolView, all: PoolView[]) {
+  const labelled = explorerPoolLabel(p, all)
+  if (labelled.endsWith(' (live)')) return labelled
   const pair = `${p.asset_a}/${p.asset_b}`
   const dup = all.filter((x) => `${x.asset_a}/${x.asset_b}` === pair).length > 1
-  return dup ? `${pair} · ${p.id}${p.lp_supply === '0' ? ' (empty)' : ''}` : pair
+  return dup ? `${pair} · ${p.id}${p.lp_supply === '0' ? ' (empty)' : ''}` : labelled
 }
 
 export function PoolsView() {

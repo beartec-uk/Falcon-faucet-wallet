@@ -8,6 +8,7 @@ import { big } from '@/lib/pl-exact-json'
 import { meshHeadFromStatus, num, str } from '@/lib/pl-mesh'
 import { consensusFromStatus } from '@/lib/scan-snapshot'
 import { amount, type Amount } from './amounts'
+import { visibleExplorerRails } from '@/lib/explorer-sot'
 
 type Obj = Record<string, unknown>
 const obj = (v: unknown): Obj => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Obj) : {})
@@ -187,21 +188,23 @@ export type BridgeRailV1 = {
 
 export function bridgeFromStatus(st: Obj): { rails: BridgeRailV1[] } {
   return {
-    rails: arr(st.rails).map((r) => {
-      const asset = str(r.asset)
-      const minted = big(r.total_minted)
-      const burned = big(r.total_burned)
-      return {
-        asset,
-        tip_height: num(r.tip_height),
-        tip_hash: str(r.tip_hash),
-        total_minted: amount(asset, minted),
-        total_burned: amount(asset, burned),
-        outstanding: amount(asset, minted > burned ? minted - burned : 0n),
-        min_confirmations: num(r.min_confirmations),
-        open_withdrawals: num(r.open_withdrawals),
-      }
-    }),
+    rails: visibleExplorerRails(
+      arr(st.rails).map((r) => {
+        const asset = str(r.asset)
+        const minted = big(r.total_minted)
+        const burned = big(r.total_burned)
+        return {
+          asset,
+          tip_height: num(r.tip_height),
+          tip_hash: str(r.tip_hash),
+          total_minted: amount(asset, minted),
+          total_burned: amount(asset, burned),
+          outstanding: amount(asset, minted > burned ? minted - burned : 0n),
+          min_confirmations: num(r.min_confirmations),
+          open_withdrawals: num(r.open_withdrawals),
+        }
+      }),
+    ),
   }
 }
 

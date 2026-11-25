@@ -29,6 +29,7 @@ load('netmap-layout')
 load('db')
 load('scan-watchers')
 load('pl-exact-json')
+load('explorer-sot')
 load('rails-pools')
 {
   const src = fs.readFileSync(path.join(root, 'src/config/network-map.ts'), 'utf8')
@@ -235,7 +236,9 @@ assert.ok(lay.ringFill(50, 0) === 0.5)
   const rp = await import(pathToFileURL(path.join(dir, 'rails-pools.mjs')).href)
   const body = px.parseExact(fs.readFileSync(path.join(root, 'tests/fixtures/pl-status-rails-pools.json'), 'utf8')).body
   const rails = rp.buildRails(body, {})
-  assert.deepEqual(rails.map((r) => r.asset), ['USDC', 'ETH', 'BTC'])
+  // The 2026-10-14 fixture has the frozen Testnet3 BTC rail only; the explorer
+  // lists USDC/ETH and omits legacy BTC. BTC4 is emitted only when present.
+  assert.deepEqual(rails.map((r) => r.asset), ['USDC', 'ETH'])
   for (const r of rails) {
     const src = body.rails.find((x) => x.asset === r.asset)
     assert.equal(r.minted, String(src.total_minted), `${r.asset} minted exact`)

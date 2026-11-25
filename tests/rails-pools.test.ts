@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { big, formatUnits, parseExact } from '@/lib/pl-exact-json'
 import { buildPools, buildRails, inferSwaps, lpCandidates, lpValue, type PoolSample } from '@/lib/rails-pools'
+import { explorerPoolLabel, explorerRailLabel, visibleExplorerPools, visibleExplorerRails } from '@/lib/explorer-sot'
 import {
   exclusionSet,
   indexActivity,
@@ -30,31 +31,57 @@ describe('exact JSON', () => {
   })
 })
 
+function withLiveBtc4(status: Record<string, unknown>): Record<string, unknown> {
+  const rails = [...((status.rails as Record<string, unknown>[]) ?? [])]
+  const legacy = rails.find((r) => r.asset === 'BTC')
+  if (!legacy) throw new Error('fixture has no BTC rail to clone')
+  rails.push({
+    ...legacy,
+    asset: 'BTC4',
+    tip_height: 163253,
+    total_minted: '525098684',
+    total_burned: '1677890',
+    vault_address: 'tb1pqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8x4x4x',
+    vault_sats: 523420794,
+    vault_utxos: 48,
+  })
+  return { ...status, rails }
+}
+
 describe('rails', () => {
-  const rails = buildRails(st, { config: bridgeConfig, btcPolicy: { kickoffFeeSats: 1000, minPegoutSats: 2000, csvBlocks: 6 } })
+  const liveSt = withLiveBtc4(st)
+  const rails = buildRails(liveSt, { config: bridgeConfig, btcPolicy: { kickoffFeeSats: 1000, minPegoutSats: 2000, csvBlocks: 6 } })
   const by = Object.fromEntries(rails.map((r) => [r.asset, r]))
 
-  it('has USDC, ETH and BTC with exact totals from status.rails', () => {
-    expect(rails.map((r) => r.asset)).toEqual(['USDC', 'ETH', 'BTC'])
+  it('omits the legacy Testnet3 BTC rail and does not invent BTC4 from it', () => {
+    expect(buildRails(st).map((r) => r.asset)).toEqual(['USDC', 'ETH'])
+  })
+
+  it('has USDC, ETH and BTC4 with exact totals from the live rail', () => {
+    expect(rails.map((r) => r.asset)).toEqual(['USDC', 'ETH', 'BTC4'])
     for (const r of rails) expect(big(r.outstanding)).toBe(big(r.minted) - big(r.burned))
-    const ethRail = (st.rails as Record<string, unknown>[]).find((r) => r.asset === 'ETH')!
+    const ethRail = (liveSt.rails as Record<string, unknown>[]).find((r) => r.asset === 'ETH')!
     expect(by.ETH.minted).toBe(String(ethRail.total_minted))
-    expect(by.BTC.vault?.sats).toBeGreaterThan(0)
-    expect(by.BTC.headers.kind).toBe('bitcoin')
+    expect(by.BTC).toBeUndefined()
+    expect(by.BTC4.vault?.sats).toBe(523420794)
+    expect(by.BTC4.headers.kind).toBe('bitcoin')
+    expect(by.BTC4.headers.tip_height).toBe(163253)
+    expect(by.BTC4.minted).toBe('525098684')
+    expect(by.BTC4.addresses.some((a) => a.source === 'status.rails[BTC4].vault_address')).toBe(true)
   })
 
   it('lists real contracts, withdrawals and V3 deposit resolutions', () => {
     expect(by.ETH.addresses.some((a) => a.value.toLowerCase() === String(st.eth_v3_bridge).toLowerCase())).toBe(true)
     expect(by.USDC.addresses.some((a) => a.label.includes('USDC token'))).toBe(true)
-    expect(by.BTC.addresses[0].value).toMatch(/^tb1p/)
+    expect(by.BTC4.addresses[0].value).toMatch(/^tb1p/)
     for (const r of rails) expect(r.withdrawals.list.every((w) => w.account && big(w.amount) > 0n)).toBe(true)
     const res = (st.eth_v3_resolutions as Record<string, unknown>[]).filter((x) => x.asset === 'ETH')
     expect(by.ETH.deposits.recent).toHaveLength(res.length)
     expect(by.ETH.depositors.byVolume[0]?.account).toBeTruthy()
     // BTC per-depositor data is not exposed: empty board, explained in gaps.
-    expect(by.BTC.depositors.byVolume).toEqual([])
-    expect(by.BTC.gaps.join(' ')).toMatch(/not exposed/)
-    expect(by.BTC.fees.map((f) => f.label)).toContain('Peg-out kickoff fee')
+    expect(by.BTC4.depositors.byVolume).toEqual([])
+    expect(by.BTC4.gaps.join(' ')).toMatch(/not exposed/)
+    expect(by.BTC4.fees.map((f) => f.label)).toContain('Peg-out kickoff fee')
     expect(by.ETH.gaps.join(' ')).toMatch(/fees .* not exposed/i)
   })
 
@@ -84,6 +111,27 @@ describe('pools', () => {
     expect(u.volume_24h_fpl).toBeNull()
     expect(u.gaps.join(' ')).toMatch(/swappers are not exposed/)
     expect(lpCandidates(st)).toContain('dave')
+  })
+
+  it('hides legacy and empty BTC pools, keeps live BTC4 and ETH/USDC', () => {
+    const liveSt = withLiveBtc4({
+      ...st,
+      defi_pools: [
+        { id: 'btc-fpl', asset_a: 'FPL', asset_b: 'BTC', reserve_a: '31908', reserve_b: '413628', lp_supply: '114522' },
+        { id: 'btc4-fpl', asset_a: 'FPL', asset_b: 'BTC4', reserve_a: '745514', reserve_b: '17735911', lp_supply: '3492919' },
+        { id: 'eth-fpl', asset_a: 'FPL', asset_b: 'ETH', reserve_a: '22362', reserve_b: '431301195555731456', lp_supply: '1' },
+        { id: 'fpl-btc', asset_a: 'FPL', asset_b: 'BTC', reserve_a: '0', reserve_b: '0', lp_supply: '0' },
+        { id: 'usdc-fpl', asset_a: 'FPL', asset_b: 'USDC', reserve_a: '65508', reserve_b: '779881723', lp_supply: '1' },
+        { id: 'btc4-empty', asset_a: 'FPL', asset_b: 'BTC4', reserve_a: '0', reserve_b: '0', lp_supply: '0' },
+      ],
+    })
+    const raw = buildPools(liveSt, [])
+    const visible = visibleExplorerPools(raw)
+    expect(raw.map((p) => p.id)).toEqual(['btc-fpl', 'btc4-fpl', 'eth-fpl', 'fpl-btc', 'usdc-fpl', 'btc4-empty'])
+    expect(visible.map((p) => p.id)).toEqual(['btc4-fpl', 'eth-fpl', 'usdc-fpl'])
+    expect(explorerPoolLabel(visible[0], visible)).toBe('FPL/BTC4 (live)')
+    expect(explorerRailLabel('BTC4')).toBe('BTC4 (live)')
+    expect(visibleExplorerRails([{ asset: 'BNB' }, { asset: 'BTC' }, { asset: 'BTC4' }, { asset: 'ETH' }]).map((r) => r.asset)).toEqual(['BNB', 'BTC4', 'ETH'])
   })
 
   it('infers swaps from reserve samples only when LP supply is unchanged', () => {
