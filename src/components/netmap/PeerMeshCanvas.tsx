@@ -175,6 +175,13 @@ export default function PeerMeshCanvas({
       minY = Math.min(minY, n.y - 72)
       maxY = Math.max(maxY, n.y + 66)
     }
+    for (const c of geoClusters(nodes)) {
+      if (c.nodeIds.length < 2) continue
+      minX = Math.min(minX, c.x - c.r - 28)
+      maxX = Math.max(maxX, c.x + c.r + 28)
+      minY = Math.min(minY, c.y - c.r - 22)
+      maxY = Math.max(maxY, c.y + c.r + 22)
+    }
     const spanX = Math.max(200, maxX - minX)
     const spanY = Math.max(200, maxY - minY)
     const padX = mobile ? 20 : 52

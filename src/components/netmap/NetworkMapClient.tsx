@@ -299,7 +299,7 @@ export default function NetworkMapClient() {
       </div>
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 md:right-[340px] flex flex-wrap items-center gap-2 md:gap-4 px-3 md:px-4 py-2.5 md:py-3 pointer-events-none bg-gradient-to-b from-[#020617]/90 via-[#020617]/55 to-transparent">
+      <div className="absolute top-0 left-0 right-0 md:right-[340px] z-10 flex flex-wrap items-center gap-x-2.5 gap-y-1 md:gap-4 px-3 md:px-4 py-2 md:py-3 pointer-events-none bg-gradient-to-b from-[#020617]/95 via-[#020617]/70 to-transparent">
         <Link
           href="/scan"
           className="pointer-events-auto text-xs text-slate-400 hover:text-[#E0DBCA] border border-slate-800 rounded-lg px-2.5 py-1 bg-[#0F172A]/85"
@@ -331,7 +331,7 @@ export default function NetworkMapClient() {
 
       {/* Mobile slide-over drawer */}
       {mobileDrawer && (
-        <aside className="md:hidden absolute inset-x-0 top-12 bottom-[76px] z-20 bg-[#0F172A] border-t border-slate-800 p-3.5 overflow-y-auto flex flex-col gap-3">
+        <aside className="md:hidden absolute inset-x-0 top-[62px] bottom-[76px] z-20 bg-[#0F172A] border-t border-slate-800 p-3.5 overflow-y-auto flex flex-col gap-3">
           {sidebarContent}
         </aside>
       )}
@@ -484,6 +484,7 @@ function BlockTicker({ blocks }: { blocks: SealedBlock[] }) {
 }
 
 const CSS = `
+html.has-shop-bar .netmap-root{top:2.25rem}
 .netmap-mono{font-family:var(--font-mono),'JetBrains Mono',monospace}
 .netmap-phase{font-size:10px;padding:1px 8px;border-radius:999px;border:1px solid #334155;color:#94A3B8;text-transform:uppercase;letter-spacing:.12em}
 .netmap-phase[data-p=vote],.netmap-phase[data-p=pulse]{border-color:#22C55E;color:#86EFAC}
