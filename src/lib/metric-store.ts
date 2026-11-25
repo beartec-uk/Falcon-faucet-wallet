@@ -11,6 +11,18 @@ import { NET_KEYS } from '@/lib/net-metrics'
 export const METRIC_KEYS: MetricKey[] = [...NET_KEYS]
 export const COUNTER_PREFIX = 'ctr.'
 
+/** Newest point of each `ctr.*` series. Matches what previousSampleFromCounters reads. */
+export function latestCounterSeries(
+  series: Partial<Record<string, MetricPoint[] | undefined>>,
+): Partial<Record<MetricKey, MetricPoint[]>> {
+  const out: Partial<Record<MetricKey, MetricPoint[]>> = {}
+  for (const [key, points] of Object.entries(series)) {
+    if (!key.startsWith(COUNTER_PREFIX) || !points?.length) continue
+    out[key as MetricKey] = [points[points.length - 1]]
+  }
+  return out
+}
+
 export type MetricStoreBackend = 'postgres' | 'redis' | 'memory'
 
 export const METRIC_RETENTION_MS = 24 * 60 * 60 * 1000
@@ -253,6 +265,62 @@ export async function getAllStoredSeries(): Promise<Partial<Record<MetricKey, Me
     }),
   )
   return out
+}
+
+/**
+ * Latest row of each `ctr.*` key in the 24h window. The sample-metrics cron
+ * only needs these counters to rebuild the previous run; /api/scan/history
+ * still uses getAllStoredSeries().
+ */
+export async function getLatestStoredCounters(
+  at = Date.now(),
+): Promise<Partial<Record<MetricKey, MetricPoint[]>>> {
+  const cutoff = retentionCutoff(at)
+  const backend = metricStoreBackend()
+
+  if (backend === 'postgres' && isDbConfigured()) {
+    await ensurePgTable()
+    const sql = getSql()
+    const like = `${COUNTER_PREFIX}%`
+    const rows = await sql`
+      SELECT DISTINCT ON (metric_key) metric_key, sampled_at, value
+      FROM explorer_metric_samples
+      WHERE metric_key LIKE ${like}
+        AND sampled_at >= ${cutoff}
+      ORDER BY metric_key ASC, sampled_at DESC
+    `
+    const out: Partial<Record<MetricKey, MetricPoint[]>> = {}
+    for (const row of rows) {
+      out[row.metric_key as MetricKey] = [{ t: Number(row.sampled_at), v: Number(row.value) }]
+    }
+    return out
+  }
+
+  if (backend === 'redis') {
+    const redis = redisClient()
+    if (redis) {
+      const out: Partial<Record<MetricKey, MetricPoint[]>> = {}
+      const keys = (await redisKeys(redis)).filter((k) => k.startsWith(COUNTER_PREFIX))
+      await Promise.all(
+        keys.map(async (key) => {
+          const zkey = `${REDIS_PREFIX}:${key}`
+          const rows = await redis.zrange(zkey, -1, -1, { withScores: true })
+          if (rows.length < 2) return
+          const point = parseZEntry(String(rows[0]), Number(rows[1]))
+          if (point && point.t >= cutoff) out[key] = [point]
+        }),
+      )
+      return out
+    }
+  }
+
+  const mem: Partial<Record<MetricKey, MetricPoint[]>> = {}
+  for (const [key, points] of memStore) {
+    if (!key.startsWith(COUNTER_PREFIX) || !points.length) continue
+    const last = points[points.length - 1]
+    if (last.t >= cutoff) mem[key] = [last]
+  }
+  return mem
 }
 
 export async function mergeIntoStore(incoming: Partial<Record<MetricKey, MetricPoint[]>>): Promise<void> {
