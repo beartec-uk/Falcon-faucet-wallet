@@ -8,6 +8,12 @@
  */
 
 import { getSql, isDbConfigured } from '@/lib/db'
+import { TRACKER_CONFIG } from '@/config/tracker'
+import {
+  aggregateArcadeHistory,
+  type AggregatedArcadeHistory,
+  type ArcadeHistoryRow,
+} from '@/lib/arcade-airdrop'
 
 export const GAME_SLUGS = [
   'falcon-flight',
@@ -77,6 +83,25 @@ export const EMPTY_RUN_STATE: RunProgressState = {
  * repeatedly during a run, so only the increase within a run is credited.
  * A new run is a different run id, or (legacy, no id) a score below the last.
  */
+/**
+ * Compute the uncapped delta to add to total_run_score for a reported score.
+ * Separate from the 500/run claim cap in applyRunScore, and never decremented on claims.
+ */
+export function computeUncappedRunDelta(
+  prev: Pick<RunProgressState, 'runs' | 'runId' | 'runScore'>,
+  scoreIn: number,
+  runIdIn: string,
+): number {
+  const score = Math.floor(Math.max(0, scoreIn))
+  const first = prev.runs === 0 && prev.runScore === 0 && prev.runId === ''
+  const newRun =
+    first ||
+    (runIdIn !== ''
+      ? runIdIn !== prev.runId
+      : prev.runId !== '' || score < prev.runScore)
+  return newRun ? score : Math.max(0, score - prev.runScore)
+}
+
 export function applyRunScore(
   prev: RunProgressState,
   scoreIn: number,
@@ -147,6 +172,8 @@ type ClaimKey = string // network|address|game|day
 const memScores = new Map<string, number>()
 const memClaims = new Map<string, number>() // count
 const memProgress = new Map<string, RunProgressState>()
+const memLifetimeScores = new Map<string, number>()
+const memPlAccounts = new Map<string, string>()
 
 function scoreKey(
   network: string,
@@ -189,6 +216,12 @@ async function ensureTables(): Promise<void> {
   await sql`ALTER TABLE arcade_scores ADD COLUMN IF NOT EXISTS run_score DOUBLE PRECISION NOT NULL DEFAULT 0`
   await sql`ALTER TABLE arcade_scores ADD COLUMN IF NOT EXISTS run_credit DOUBLE PRECISION NOT NULL DEFAULT 0`
   await sql`ALTER TABLE arcade_scores ADD COLUMN IF NOT EXISTS runs INTEGER NOT NULL DEFAULT 0`
+  await sql`ALTER TABLE arcade_scores ADD COLUMN IF NOT EXISTS total_run_score DOUBLE PRECISION NOT NULL DEFAULT 0`
+  await sql`
+    CREATE INDEX IF NOT EXISTS arcade_scores_pl_day_idx
+    ON arcade_scores (network, pl_account, day_utc)
+    WHERE pl_account IS NOT NULL
+  `
   await sql`
     CREATE INDEX IF NOT EXISTS arcade_scores_lb
     ON arcade_scores (network, game, day_utc, score DESC)
@@ -230,7 +263,7 @@ export async function upsertArcadeScore(opts: {
   dayUtc?: string
   /** Falcon PL account name of the player, when the wallet has one. */
   plAccount?: string
-}): Promise<{ best: number; improved: boolean; progress: number; runs: number }> {
+}): Promise<{ best: number; improved: boolean; progress: number; runs: number; totalRunScore: number }> {
   const day = opts.dayUtc ?? arcadeUtcDay()
   const score = Math.floor(Math.max(0, opts.score))
   const address = opts.address.trim()
@@ -245,12 +278,12 @@ export async function upsertArcadeScore(opts: {
       const rows = await sql`
         INSERT INTO arcade_scores (
           network, address, game, day_utc, score, pl_account,
-          progress, run_id, run_score, run_credit, runs
+          progress, run_id, run_score, run_credit, runs, total_run_score
         )
         VALUES (
           ${opts.network}, ${address}, ${opts.game}, ${day}::date, ${score},
           ${opts.plAccount ?? null},
-          ${credit}, ${runId}, ${score}, ${credit}, 1
+          ${credit}, ${runId}, ${score}, ${credit}, 1, ${score}
         )
         ON CONFLICT (network, address, game, day_utc)
         DO UPDATE SET
@@ -279,9 +312,15 @@ export async function upsertArcadeScore(opts: {
                        ELSE arcade_scores.run_id <> '' OR EXCLUDED.run_score < arcade_scores.run_score END)
             THEN 1 ELSE 0
           END,
+          total_run_score = arcade_scores.total_run_score + CASE
+            WHEN (CASE WHEN EXCLUDED.run_id <> '' THEN EXCLUDED.run_id <> arcade_scores.run_id
+                       ELSE arcade_scores.run_id <> '' OR EXCLUDED.run_score < arcade_scores.run_score END)
+            THEN EXCLUDED.run_score
+            ELSE GREATEST(0, EXCLUDED.run_score - arcade_scores.run_score)
+          END,
           run_id = EXCLUDED.run_id,
           updated_at = NOW()
-        RETURNING score, progress, runs
+        RETURNING score, progress, runs, total_run_score
       `
       const best = Number(rows[0]?.score ?? score)
       return {
@@ -289,6 +328,7 @@ export async function upsertArcadeScore(opts: {
         improved: best === score && score > 0,
         progress: Number(rows[0]?.progress ?? 0),
         runs: Number(rows[0]?.runs ?? 0),
+        totalRunScore: Number(rows[0]?.total_run_score ?? score),
       }
     } catch (e) {
       console.warn('[arcade-store] upsert db failed, using memory:', e)
@@ -299,9 +339,14 @@ export async function upsertArcadeScore(opts: {
   const prev = memScores.get(k) ?? 0
   const best = Math.max(prev, score)
   memScores.set(k, best)
-  const st = applyRunScore(memProgress.get(k) ?? EMPTY_RUN_STATE, score, runId)
+  if (opts.plAccount) memPlAccounts.set(k, opts.plAccount.trim())
+  const prevSt = memProgress.get(k) ?? EMPTY_RUN_STATE
+  const uncappedDelta = computeUncappedRunDelta(prevSt, score, runId)
+  const nextTotalRunScore = (memLifetimeScores.get(k) ?? 0) + uncappedDelta
+  memLifetimeScores.set(k, nextTotalRunScore)
+  const st = applyRunScore(prevSt, score, runId)
   memProgress.set(k, st)
-  return { best, improved: best > prev, progress: st.progress, runs: st.runs }
+  return { best, improved: best > prev, progress: st.progress, runs: st.runs, totalRunScore: nextTotalRunScore }
 }
 
 /** Accumulated claim progress for the day (since the last claim). */
@@ -840,4 +885,117 @@ export async function arcadeDaysByPlAccount(network: string, sinceDay: string): 
     console.error('[arcade-store] tracker days', e)
     return []
   }
+}
+
+/**
+ * Shared All-Time + Overall Airdrop leaderboard reader.
+ * Reads from the exact same arcade_scores (+ finalized arcade_claims) source and
+ * shared aggregation (aggregateArcadeHistory / computeArcadeAirdropPoints) used by
+ * the testnet activity airdrop tracker and Game Faucet claims.
+ */
+export async function getAllTimeLeaderboard(opts: {
+  network: string
+  limit?: number
+  now?: number
+}): Promise<AggregatedArcadeHistory> {
+  const now = opts.now ?? Date.now()
+  const todayUtc = arcadeUtcDay(new Date(now))
+  const airdropWindowSince = new Date(
+    now - TRACKER_CONFIG.windowDays * 86_400_000,
+  )
+    .toISOString()
+    .slice(0, 10)
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 25))
+
+  if (isDbConfigured()) {
+    try {
+      await ensureTables()
+      const sql = getSql()
+      const rows = (await sql`
+        WITH claim_counts AS (
+          SELECT network, address, game, day_utc,
+                 COUNT(*) FILTER (WHERE tx_hash NOT LIKE 'reserved:%')::int AS finalized_claims
+          FROM arcade_claims
+          WHERE network = ${opts.network}
+          GROUP BY network, address, game, day_utc
+        )
+        SELECT
+          s.network,
+          s.address,
+          s.pl_account,
+          s.game,
+          s.day_utc::text AS day_utc,
+          s.score,
+          s.progress,
+          s.runs,
+          COALESCE(s.total_run_score, 0)::float AS total_run_score,
+          COALESCE(c.finalized_claims, 0)::int AS finalized_claims
+        FROM arcade_scores s
+        LEFT JOIN claim_counts c
+          ON c.network = s.network
+         AND c.address = s.address
+         AND c.game = s.game
+         AND c.day_utc = s.day_utc
+        WHERE s.network = ${opts.network}
+      `) as Record<string, unknown>[]
+
+      const mapped: ArcadeHistoryRow[] = rows.map((r) => ({
+        network: String(r.network),
+        address: String(r.address),
+        plAccount: r.pl_account == null ? null : String(r.pl_account),
+        game: String(r.game),
+        dayUtc: String(r.day_utc),
+        score: Number(r.score ?? 0),
+        progress: Number(r.progress ?? 0),
+        runs: Number(r.runs ?? 0),
+        finalizedClaims: Number(r.finalized_claims ?? 0),
+        totalRunScore: Number(r.total_run_score ?? 0),
+      }))
+
+      return aggregateArcadeHistory(mapped, {
+        gameSlugs: GAME_SLUGS,
+        minScore: GAME_FAUCET_MIN_SCORE,
+        airdropWindowSince,
+        todayUtc,
+        limit,
+      })
+    } catch (e) {
+      console.warn('[arcade-store] all-time leaderboard db failed:', e)
+    }
+  }
+
+  // Memory fallback (used in tests and local non-DB runs)
+  const prefix = `${opts.network}|`
+  const keys = new Set<string>([
+    ...memScores.keys(),
+    ...memProgress.keys(),
+    ...memClaims.keys(),
+  ])
+  const memRows: ArcadeHistoryRow[] = []
+  for (const k of keys) {
+    if (!k.startsWith(prefix)) continue
+    const [, address, game, dayUtc] = k.split('|')
+    if (!address || !game || !dayUtc) continue
+    const st = memProgress.get(k)
+    memRows.push({
+      network: opts.network,
+      address,
+      plAccount: memPlAccounts.get(k) ?? null,
+      game,
+      dayUtc,
+      score: memScores.get(k) ?? 0,
+      progress: st?.progress ?? 0,
+      runs: st?.runs ?? 0,
+      finalizedClaims: memClaims.get(k) ?? 0,
+      totalRunScore: memLifetimeScores.get(k) ?? 0,
+    })
+  }
+
+  return aggregateArcadeHistory(memRows, {
+    gameSlugs: GAME_SLUGS,
+    minScore: GAME_FAUCET_MIN_SCORE,
+    airdropWindowSince,
+    todayUtc,
+    limit,
+  })
 }

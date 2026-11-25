@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import ArcadeLeaderboard from '@/components/ArcadeLeaderboard'
 import Header from '@/components/Header'
 import ProductShell from '@/components/ProductShell'
 import { loadPrimaryWallet } from '@/lib/wallet-store'
@@ -326,6 +327,21 @@ export default function ArcadePage() {
     pushWallet()
   }, [pushWallet])
 
+  // Jump to the in-page leaderboard if navigated via #leaderboard
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.location.hash !== '#leaderboard') return
+    const t = window.setTimeout(() => {
+      document.getElementById('leaderboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [])
+
+  const scrollToLeaderboard = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault()
+    document.getElementById('leaderboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (typeof window !== 'undefined') window.history.replaceState(null, '', '#leaderboard')
+  }, [])
+
   // Auto-dismiss claim banner so it doesn’t sit over the game forever
   useEffect(() => {
     if (!status && !error && !lastTx) return
@@ -345,30 +361,33 @@ export default function ArcadePage() {
      * iframe. The old “Falcon Arcade / play mini-games / Leaderboard” strip is
      * gone so it cannot pin over the game.
      */
-    <ProductShell intensity={0.22} className="h-[100dvh] max-h-[100dvh] overflow-hidden">
+    <ProductShell intensity={0.22}>
+      <div id="arcade-top" />
       <Header current="arcade" subtitle="Arcade · Game Faucet" sticky={false}>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/arcade/leaderboard"
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <a
+            href="#leaderboard"
+            onClick={scrollToLeaderboard}
+            data-testid="header-leaderboard-jump"
+            className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 whitespace-nowrap"
           >
             Leaderboard
-          </Link>
+          </a>
           <Link
             href="/feedback"
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
+            className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
           >
             Feedback
           </Link>
           <Link
             href="/terms"
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
+            className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
           >
             Terms
           </Link>
           <Link
             href="/privacy"
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
+            className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700"
           >
             Privacy
           </Link>
@@ -379,7 +398,7 @@ export default function ArcadePage() {
           ) : (
             <Link
               href="/wallet"
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 font-medium"
+              className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 font-medium"
             >
               Wallet
             </Link>
@@ -395,7 +414,7 @@ export default function ArcadePage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 bg-slate-950 relative">
+      <div className="h-[calc(100dvh-7.5rem)] min-h-[520px] max-h-[840px] bg-slate-950 relative border-b border-slate-800/80">
         {/* Claim status toast — auto-dismisses after success/error */}
         {(status || error || lastTx || claimBusy) && (
           <div className="absolute top-2 left-2 right-2 z-10 pointer-events-none">
@@ -428,6 +447,8 @@ export default function ArcadePage() {
           referrerPolicy="origin"
         />
       </div>
+
+      <ArcadeLeaderboard />
     </ProductShell>
   )
 }
