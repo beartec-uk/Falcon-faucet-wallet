@@ -80,6 +80,17 @@ describe('mappers', () => {
     expect(rails.map((r) => r.asset)).toEqual(['BTC4', 'ETH'])
     expect(rails[0].outstanding).toEqual({ asset: 'BTC4', raw: '523420794', decimals: 8, value: '5.23420794' })
   })
+  it('hides an empty non-live BNB rail and keeps live rails, even if a live rail is empty', () => {
+    const rails = bridgeFromStatus({
+      rails: [
+        { asset: 'BNB', tip_height: 0, tip_hash: '', total_minted: '0', total_burned: '0', min_confirmations: 6, open_withdrawals: 0 },
+        { asset: 'BTC4', tip_height: 163253, tip_hash: 'bb', total_minted: '525098684', total_burned: '1677890', min_confirmations: 6, open_withdrawals: 32 },
+        { asset: 'ETH', tip_height: 0, tip_hash: '', total_minted: '0', total_burned: '0', min_confirmations: 6, open_withdrawals: 0 },
+        { asset: 'USDC', tip_height: 6, tip_hash: 'cc', total_minted: '4970000000', total_burned: '0', min_confirmations: 6, open_withdrawals: 0 },
+      ],
+    }).rails
+    expect(rails.map((r) => r.asset)).toEqual(['BTC4', 'ETH', 'USDC'])
+  })
   it('normalizes pairs', () => {
     expect(normalizePair('btc4/fpl')).toBe('BTC4-FPL')
     expect(normalizePair('BTC4')).toBe('BTC4-FPL')

@@ -5,8 +5,8 @@
       "id": "fusdc-sepolia",
       "status": "live",
       "direction_labels": {
-        "in": "Ethereum Sepolia · USDC → Falcon F-USDC",
-        "out": "Falcon F-USDC → Sepolia USDC"
+        "in": "Ethereum Sepolia \u00b7 USDC \u2192 Falcon F-USDC",
+        "out": "Falcon F-USDC \u2192 Sepolia USDC"
       },
       "source": {
         "chain": "ethereum",
@@ -26,8 +26,8 @@
       "id": "feth-sepolia",
       "status": "live",
       "direction_labels": {
-        "in": "Ethereum Sepolia · ETH/WETH → Falcon FETH",
-        "out": "Falcon FETH → Sepolia WETH (soon)"
+        "in": "Ethereum Sepolia \u00b7 ETH/WETH \u2192 Falcon FETH",
+        "out": "Falcon FETH \u2192 Sepolia WETH (soon)"
       },
       "source": {
         "chain": "ethereum",
@@ -52,10 +52,10 @@
     },
     {
       "id": "fbtc-native",
-      "status": "live",
+      "status": "frozen",
       "direction_labels": {
-        "in": "Bitcoin testnet · BTC → Falcon PL FBTC",
-        "out": "Falcon PL FBTC → BTC (note only until payout ships)"
+        "in": "Bitcoin Testnet3 \u00b7 BTC \u2192 Falcon PL FBTC (frozen 16 Oct 2026)",
+        "out": "Falcon PL FBTC \u2192 BTC Testnet3 (frozen 16 Oct 2026; exits remain paused)"
       },
       "source": {
         "chain": "bitcoin",
@@ -69,17 +69,19 @@
         "network_id": 2300
       },
       "ux": {
-        "label": "BTC → FBTC",
+        "label": "BTC \u2192 FBTC (legacy, frozen)",
         "hide_wbtc": true,
-        "flow": "send testnet BTC to 2300 watch + FALC memo → RailDeposit mints FBTC"
-      }
+        "flow": "Legacy Bitcoin Testnet3 NUMS/watch pool, frozen 16 Oct 2026. Live rail is BTC4 (Testnet4 BitVM2); live AMM pool is btc4-fpl."
+      },
+      "frozen_on": "2026-10-16",
+      "sot": "Falcon-PL falcon-pl-rs/crates/fd-pl/docs/BRIDGES_2300_STATUS.md (product 2.9.81)"
     },
     {
       "id": "fbnb-bsc",
       "status": "not_public",
       "direction_labels": {
-        "in": "BSC Testnet · BNB/WBNB → Falcon FBNB",
-        "out": "Falcon FBNB → BSC WBNB (soon)"
+        "in": "BSC Testnet \u00b7 BNB/WBNB \u2192 Falcon FBNB",
+        "out": "Falcon FBNB \u2192 BSC WBNB (soon)"
       },
       "source": {
         "chain": "bsc",

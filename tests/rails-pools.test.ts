@@ -131,7 +131,12 @@ describe('pools', () => {
     expect(visible.map((p) => p.id)).toEqual(['btc4-fpl', 'eth-fpl', 'usdc-fpl'])
     expect(explorerPoolLabel(visible[0], visible)).toBe('FPL/BTC4 (live)')
     expect(explorerRailLabel('BTC4')).toBe('BTC4 (live)')
-    expect(visibleExplorerRails([{ asset: 'BNB' }, { asset: 'BTC' }, { asset: 'BTC4' }, { asset: 'ETH' }]).map((r) => r.asset)).toEqual(['BNB', 'BTC4', 'ETH'])
+    expect(visibleExplorerRails([
+      { asset: 'BNB' },
+      { asset: 'BTC', total_minted: '895370', outstanding: '895370', tip_height: 5_275_296 },
+      { asset: 'BTC4', total_minted: '525098684', outstanding: '523420794', tip_height: 163253 },
+      { asset: 'ETH' },
+    ]).map((r) => r.asset)).toEqual(['BTC4', 'ETH'])
   })
 
   it('infers swaps from reserve samples only when LP supply is unchanged', () => {

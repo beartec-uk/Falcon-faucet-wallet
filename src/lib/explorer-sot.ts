@@ -77,10 +77,55 @@ export function visibleExplorerPools<T extends ExplorerPoolLike>(
   return pools.filter((p) => !isHiddenExplorerPool(p));
 }
 
-export function visibleExplorerRails<T extends { asset: string }>(
+/** Amount-like fields on either the explorer API rail or the Rails tab RailView. */
+export type ExplorerRailLike = {
+  asset: string;
+  minted?: string;
+  total_minted?: string | { raw?: string; value?: string };
+  outstanding?: string | { raw?: string; value?: string };
+  burned?: string;
+  total_burned?: string | { raw?: string; value?: string };
+  tip_height?: number;
+  headers?: { tip_height?: number };
+  open_withdrawals?: number;
+};
+
+function railRaw(v: string | { raw?: string; value?: string } | undefined): bigint {
+  if (v == null) return 0n;
+  const s = typeof v === "string" ? v : (v.raw ?? v.value ?? "0");
+  if (!s || s === "0") return 0n;
+  try {
+    return BigInt(s);
+  } catch {
+    return 0n;
+  }
+}
+
+/** A rail with no minted/outstanding stock and no header tip or open withdrawals. */
+export function isEmptyExplorerRail(r: ExplorerRailLike): boolean {
+  const minted = railRaw(r.minted ?? r.total_minted);
+  const outstanding = railRaw(r.outstanding);
+  const tip = r.tip_height ?? r.headers?.tip_height ?? 0;
+  const open = r.open_withdrawals ?? 0;
+  return minted === 0n && outstanding === 0n && tip === 0 && open === 0;
+}
+
+/**
+ * Hidden on explorer rails / /v1/explorer/bridge:
+ * - legacy assets (BTC / Testnet3), even if they still have outstanding;
+ * - any other non-live rail that is empty (e.g. BNB with zero stock).
+ * Live rails (USDC, ETH, BTC4) always stay visible, including a temporarily empty live rail.
+ */
+export function isHiddenExplorerRail(r: ExplorerRailLike): boolean {
+  if (isLiveRailAsset(r.asset)) return false;
+  if (isLegacyRailAsset(r.asset)) return true;
+  return isEmptyExplorerRail(r);
+}
+
+export function visibleExplorerRails<T extends ExplorerRailLike>(
   rails: T[],
 ): T[] {
-  return rails.filter((r) => !isLegacyRailAsset(r.asset));
+  return rails.filter((r) => !isHiddenExplorerRail(r));
 }
 
 /** Tab label for a visible pool. The live BTC4 pool is named after the SoT asset. */

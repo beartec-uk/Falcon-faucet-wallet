@@ -1,5 +1,5 @@
 {
-  "status": "live",
+  "status": "frozen",
   "btc_withdrawals_enabled": false,
   "btc_deposits_enabled": false,
   "network": "falcon-pl",
@@ -19,12 +19,15 @@
     "tb1pj9d6d6eaayw7f7hc3mr2lm3xhuscuhtw6kpjqz5jvvuf4mh2lduq2pqytm",
     "tb1p2xuekx55w9llxe023y070lf32kk0z873nv6pse0awg75ll7l930suzcgn5"
   ],
-  "notes": "STATUS SoT 2.9.60: NUMS P2TR even-Y pool is primary peg-in. BTC peg-out and new deposits are paused (btc_withdrawals_enabled=false, btc_deposits_enabled=false) \u2014 not custodialess. Odd-Y v1 and prior BitVM2 instance are historical.",
+  "notes": "STATUS SoT 2.9.81: the live Bitcoin rail is BTC4 (Bitcoin Testnet4 BitVM2, since height 692,000); the live AMM pool is btc4-fpl. This file records the legacy Testnet3 NUMS/watch pool in watch_address, frozen 16 Oct 2026. Deposits and withdrawals on that Testnet3 rail stay paused (btc_deposits_enabled=false, btc_withdrawals_enabled=false). Claiming deposits already sent stays open. Not custodialess. Odd-Y v1 and the prior BitVM2 instance are historical.",
   "btc_exit_mode": "bitvm2",
-  "trust_note": "BTC deposits and withdrawals are paused (16 Oct 2026). The BTC pool is custodial (keys on one operator host); there is no on-chain Disprove. Not non-custodial.",
+  "trust_note": "The Testnet3 BTC pool was frozen on 16 Oct 2026. Deposits and withdrawals on that rail are paused. The Testnet3 pool is custodial (keys on one operator host); there is no on-chain Disprove. Not non-custodial. The live rail is BTC4 (Testnet4 BitVM2).",
   "historical_watch_addresses": {
     "prior_bitvm2_instance": "tb1p2xuekx55w9llxe023y070lf32kk0z873nv6pse0awg75ll7l930suzcgn5",
     "odd_y_v1": "tb1pq9mgl62e4dskkc9h4jxwfsfdt56hn9vl22u9xhqgz2l8jxfpwsascq6098"
   },
-  "sot": "Falcon-PL docs/BRIDGES_2300_STATUS.md (product 2.9.60)"
+  "sot": "Falcon-PL falcon-pl-rs/crates/fd-pl/docs/BRIDGES_2300_STATUS.md (product 2.9.81)",
+  "frozen_on": "2026-10-16",
+  "live_rail": "BTC4",
+  "live_pool_id": "btc4-fpl"
 }
