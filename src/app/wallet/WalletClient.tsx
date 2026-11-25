@@ -4867,6 +4867,7 @@ export default function WalletPage() {
                     const incoming =
                       isDepositClaim ||
                       tx.type === 'Claim' ||
+                      tx.direction === 'in' ||
                       ((tx.type === 'Payment' || tx.type === 'AssetPay') &&
                         (tx.destination === wallet.address || tx.destination === selfId || (!!accountName && tx.destination === accountName)))
                     const outgoing =

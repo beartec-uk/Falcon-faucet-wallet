@@ -14,6 +14,7 @@ import {
 import { plAccount, plStatus } from '@/lib/pl-rpc'
 import { bookCall } from '@/lib/explorer-api/node'
 import { buildPlActivity } from '@/lib/pl-activity'
+import { lookupPlTxs } from '@/lib/pl-tx-log'
 import { loadZeroPoint, offsetAsset, type ZeroPoint } from '@/lib/pl-zero-point'
 
 const ADDRESS_RE = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/
@@ -136,7 +137,15 @@ export async function GET(req: NextRequest) {
         within(bookList({ type: 'fills_query', pair: null, account: self, limit: 50 }, 'fills'), 2_500, []),
         within(bookList({ type: 'open_orders_query', account: self }, 'orders'), 2_500, []),
       ])
-      const recent = Array.isArray(acct.recent_txs) ? acct.recent_txs as Array<Record<string, unknown>> : []
+      const rawRecent = Array.isArray(acct.recent_txs) ? acct.recent_txs as Array<Record<string, unknown>> : []
+      const txMeta = await lookupPlTxs(rawRecent.map((t) => String(t.tx_id ?? ''))).catch(() => new Map())
+      const recent = rawRecent.map((t) => {
+        const hit = txMeta.get(String(t.tx_id ?? '').toLowerCase())
+        if (!hit) return t
+        const currentKind = String(t.kind ?? 'tx')
+        const mergedKind = currentKind === 'tx' ? hit.kind : currentKind
+        return { ...hit.meta, ...t, kind: mergedKind }
+      })
       const transactions = buildPlActivity({ self, recentTxs: recent, fills, orders, tip, nowMs: Date.now() })
       return NextResponse.json({
         address,
