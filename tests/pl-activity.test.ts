@@ -65,3 +65,46 @@ describe('buildPlActivity', () => {
     expect(rows.find((x) => x.hash === 'cc')!.label).toBe('Chain transaction')
   })
 })
+
+describe('buildPlActivity extended tx kinds', () => {
+  it('formats lending, liquidity, swap, bridge, and limit order kinds with human labels and amounts', () => {
+    const out = buildPlActivity({
+      self: 'scott.reynolds.123',
+      tip: 986_390,
+      nowMs: NOW,
+      fills: [],
+      orders: [],
+      recentTxs: [
+        { tx_id: 't1', height: 986_380, kind: 'lend_withdraw', market_id: 'lend-eth', shares: '410000000000000000', account: 'scott.reynolds.123' },
+        { tx_id: 't2', height: 986_379, kind: 'lend_supply', market_id: 'lend-usdc', amount: '1800000000', account: 'scott.reynolds.123' },
+        { tx_id: 't3', height: 986_378, kind: 'add_liquidity', pool_id: 'eth-fpl', amt_a: '100000000000000000', amt_b: '5000', account: 'scott.reynolds.123' },
+        { tx_id: 't4', height: 986_377, kind: 'remove_liquidity', pool_id: 'usdc-fpl', lp_burn: '25000', account: 'scott.reynolds.123' },
+        { tx_id: 't5', height: 986_376, kind: 'swap_route', token_in: 'USDC', token_out: 'FPL', amount_in: '250000000', account: 'scott.reynolds.123' },
+        { tx_id: 't6', height: 986_375, kind: 'rail_withdraw', asset: 'BTC4', amount: '5000000', external_to: 'tb1qxyz', account: 'scott.reynolds.123' },
+        { tx_id: 't7', height: 986_374, kind: 'eth_v3_deposit', asset: 'ETH', deposit_id: '0xabcdef1234567890', credit_to: 'scott.reynolds.123', account: 'scott.reynolds.123' },
+        { tx_id: 't8', height: 986_373, kind: 'place_limit_order', pair: 'ETH-FPL', side: 'sell', price: '51847', amount: '100000000000000000', account: 'scott.reynolds.123' },
+        { tx_id: 't9', height: 986_372, kind: 'tx', amount: 0, fee: 2, account: 'scott.reynolds.123' },
+      ],
+    })
+    const byId = Object.fromEntries(out.map((r) => [r.hash, r]))
+    expect(byId.t1.label).toBe('Withdrew from lending')
+    expect(byId.t1.amountLabel).toBe('+0.41 FETH shares')
+    expect(byId.t2.label).toBe('Supplied to lending')
+    expect(byId.t2.amountLabel).toBe('−1,800 F-USDC')
+    expect(byId.t3.label).toBe('Added liquidity')
+    expect(byId.t3.amountLabel).toBe('0.1 FETH + 5,000 FPL')
+    expect(byId.t4.label).toBe('Removed liquidity')
+    expect(byId.t4.amountLabel).toBe('25,000 LP')
+    expect(byId.t5.label).toBe('Swapped F-USDC → FPL')
+    expect(byId.t5.amountLabel).toBe('−250 F-USDC')
+    expect(byId.t6.label).toBe('Bridge withdraw')
+    expect(byId.t6.amountLabel).toBe('−0.05 FBTC')
+    expect(byId.t7.label).toBe('ETH bridge deposit')
+    expect(byId.t7.amountAsset).toBe('FETH')
+    expect(byId.t8.label).toBe('Placed limit sell order')
+    expect(byId.t8.amountLabel).toBe('0.1 FETH')
+    expect(byId.t9.label).toBe('Chain transaction')
+    expect(byId.t9.party).toBe('DeFi / protocol tx')
+    expect(byId.t9.amountLabel).toBe('fee 2 FPL')
+  })
+})

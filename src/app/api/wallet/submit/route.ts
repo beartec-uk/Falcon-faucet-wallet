@@ -1,5 +1,6 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 import { recordSwap } from '@/lib/swap-log'
+import { recordPlTx } from '@/lib/pl-tx-log'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireBrowserOrigin } from '@/lib/origin'
 import { resolveNetworkKey, serverNetworkConfig, serverRpcCall } from '@/lib/network-server'
@@ -57,7 +58,10 @@ export async function POST(req: NextRequest) {
     try {
       await consumeSubmitRateLimit(rlKey)
       const result = await plSubmitRaw(body.tx_json)
-      if (result.ok && body.tx_json.includes('"swap_route"')) await recordSwap(body.tx_json).catch(() => false)
+      if (result.ok) {
+        await recordPlTx(body.tx_json).catch(() => false)
+        if (body.tx_json.includes('"swap_route"')) await recordSwap(body.tx_json).catch(() => false)
+      }
       let hash = ''
       try {
         const m = body.tx_json.match(/"tx_id"\s*:\s*"([0-9a-fA-F]+)"/)
@@ -85,6 +89,7 @@ export async function POST(req: NextRequest) {
     try {
       await consumeSubmitRateLimit(rlKey)
       const result = await plSubmit(body.tx as PlTx)
+      if (result.ok) await recordPlTx(body.tx as Record<string, unknown>).catch(() => false)
       return NextResponse.json(
         {
           success: result.ok,

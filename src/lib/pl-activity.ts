@@ -66,13 +66,44 @@ export type PlActivityRow = {
 
 const KIND_TYPE: Record<string, string> = {
   pay: 'Payment',
+  pay_to_key: 'PayToKey',
   claim: 'Claim',
   asset_pay: 'AssetPay',
   swap_route: 'Swap',
   swap: 'Swap',
   place_limit_order: 'LimitOrder',
   cancel_order: 'CancelOrder',
+  add_liquidity: 'AddLiquidity',
+  add_liq: 'AddLiquidity',
+  remove_liquidity: 'RemoveLiquidity',
+  remove_liq: 'RemoveLiquidity',
+  lend_supply: 'LendSupply',
+  lend_withdraw: 'LendWithdraw',
+  lend_borrow: 'LendBorrow',
+  lend_repay: 'LendRepay',
+  lend_set_price: 'LendSetPrice',
+  rail_deposit: 'BridgeDeposit',
+  rail_withdraw: 'BridgeWithdraw',
+  eth_v3_deposit: 'EthBridgeDeposit',
+  rail_challenge: 'BridgeChallenge',
+  rail_header: 'RailHeader',
   set_external_addrs: 'LinkAddress',
+  set_external_addr: 'LinkAddress',
+  vault_open: 'VaultOpen',
+  vault_lock: 'VaultLock',
+  bond: 'Bond',
+  bond_v2: 'Bond',
+  unbond: 'Unbond',
+  complete_unbond: 'CompleteUnbond',
+  unjail: 'Unjail',
+  reactivate: 'Reactivate',
+  name_reserve: 'NameReserve',
+  name_activate: 'NameActivate',
+  create_pool: 'CreatePool',
+  create_market: 'CreateMarket',
+  credit_asset: 'CreditAsset',
+  watcher_credit: 'WatcherCredit',
+  watcher_heartbeat: 'WatcherHeartbeat',
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -80,9 +111,38 @@ const KIND_LABEL: Record<string, string> = {
   swap: 'Swap submitted',
   place_limit_order: 'Placed limit order',
   cancel_order: 'Cancelled order',
+  add_liquidity: 'Added liquidity',
   add_liq: 'Added liquidity',
+  remove_liquidity: 'Removed liquidity',
   remove_liq: 'Removed liquidity',
+  lend_supply: 'Supplied to lending',
+  lend_withdraw: 'Withdrew from lending',
+  lend_borrow: 'Borrowed from lending',
+  lend_repay: 'Repaid lending debt',
+  lend_set_price: 'Updated lend price',
+  rail_deposit: 'Bridge deposit',
+  rail_withdraw: 'Bridge withdraw',
+  eth_v3_deposit: 'ETH bridge deposit',
+  rail_challenge: 'Bridge challenge',
+  rail_header: 'Submitted rail header',
   set_external_addrs: 'Linked external address',
+  set_external_addr: 'Linked external address',
+  vault_open: 'Opened vault',
+  vault_lock: 'Locked vault',
+  pay_to_key: 'Sent (key-bound)',
+  bond: 'Bonded validator',
+  bond_v2: 'Bonded validator',
+  unbond: 'Unbonded stake',
+  complete_unbond: 'Completed unbond',
+  unjail: 'Unjailed validator',
+  reactivate: 'Reactivated validator',
+  name_reserve: 'Reserved name',
+  name_activate: 'Activated name',
+  create_pool: 'Created pool',
+  create_market: 'Created lend market',
+  credit_asset: 'Credited asset',
+  watcher_credit: 'Watcher work credit',
+  watcher_heartbeat: 'Watcher heartbeat',
   // fd-pl 2.10.4 account_tx_json collapses every other TxBody variant to "tx".
   tx: 'Chain transaction',
 }
@@ -92,7 +152,23 @@ const n = (v: unknown) => {
   return Number.isFinite(x) ? x : 0
 }
 const s = (v: unknown) => (v == null ? '' : String(v))
+const hasPositiveRaw = (v: unknown) => {
+  const str = s(v).trim()
+  return /^\d+$/.test(str) && str !== '0'
+}
 const toRipple = (ms: number | undefined) => (ms == null ? undefined : Math.floor(ms / 1000) - RIPPLE_EPOCH)
+
+function assetFromMarketId(marketId: string): string {
+  const m = marketId.trim().toUpperCase()
+  if (m.startsWith('LEND-')) return m.slice(5)
+  if (m.includes('-')) return m.split('-').pop() || 'FPL'
+  return m || 'FPL'
+}
+
+function assetsFromPoolId(poolId: string): [string, string] {
+  const parts = poolId.trim().toUpperCase().split('-')
+  return [parts[0] || 'FPL', parts[1] || 'FPL']
+}
 
 export type BuildActivityInput = {
   self: string
@@ -114,24 +190,190 @@ export function buildPlActivity({ self, recentTxs, fills, orders, tip, nowMs }: 
     if (!hash) continue
     const kind = s(t.kind) || 'tx'
     const height = n(t.height)
-    const assetCode = kind === 'asset_pay' || kind === 'rail_deposit' || kind === 'rail_withdraw' ? s(t.asset) || 'FPL' : 'FPL'
+    const assetCode =
+      kind === 'asset_pay' ||
+      kind === 'rail_deposit' ||
+      kind === 'rail_withdraw' ||
+      kind === 'eth_v3_deposit' ||
+      kind === 'credit_asset'
+        ? s(t.asset) || 'FPL'
+        : 'FPL'
+    const rawAmt = t.amount
+    const formattedTopAmt = hasPositiveRaw(rawAmt) ? formatAssetAmount(rawAmt, assetCode) : undefined
     const row: PlActivityRow = {
       hash,
       type: KIND_TYPE[kind] ?? 'Tx',
-      amount: t.amount != null && n(t.amount) !== 0 ? formatAssetAmount(t.amount, assetCode) : undefined,
+      amount: formattedTopAmt,
       amountAsset: assetLabel(assetCode),
-      destination: t.destination != null && s(t.destination) ? s(t.destination) : undefined,
+      destination: s(t.destination) ? s(t.destination) : undefined,
       account: s(t.account),
       result: 'tesSUCCESS',
       date: when(height),
       height: height || undefined,
     }
-    if (KIND_LABEL[kind]) {
+
+    if (kind === 'pay_to_key') {
+      row.direction = 'out'
+      row.label = KIND_LABEL.pay_to_key
+      row.party = s(t.destination) || null
+      if (formattedTopAmt) row.amountLabel = `−${formattedTopAmt} FPL`
+    } else if (kind === 'swap_route' || kind === 'swap') {
+      const tokenIn = s(t.token_in).toUpperCase()
+      const tokenOut = s(t.token_out).toUpperCase()
+      const poolId = s(t.pool_id)
+      const inAsset = tokenIn || (poolId ? assetsFromPoolId(poolId)[0] : 'FPL')
+      const amtInRaw = t.amount_in
+      row.direction = 'trade'
+      row.label =
+        tokenIn && tokenOut
+          ? `Swapped ${assetLabel(tokenIn)} → ${assetLabel(tokenOut)}`
+          : KIND_LABEL[kind]
+      row.party = poolId || (tokenOut ? `→ ${assetLabel(tokenOut)}` : null)
+      if (hasPositiveRaw(amtInRaw)) {
+        const fmtIn = formatAssetAmount(amtInRaw, inAsset)
+        row.amount = fmtIn
+        row.amountAsset = assetLabel(inAsset)
+        row.amountLabel = `−${fmtIn} ${assetLabel(inAsset)}`
+      } else {
+        row.amountLabel = '—'
+      }
+    } else if (kind === 'place_limit_order') {
+      const pair = s(t.pair).toUpperCase()
+      const base = pair.split('-')[0] || 'FPL'
+      const side = s(t.side).toLowerCase()
+      row.direction = 'trade'
+      row.label = side ? `Placed limit ${side} order` : KIND_LABEL.place_limit_order
+      row.party =
+        pair && hasPositiveRaw(t.price)
+          ? `${pair} @ ${formatAssetAmount(t.price, 'FPL')}`
+          : pair || null
+      if (hasPositiveRaw(t.amount)) {
+        const fmt = formatAssetAmount(t.amount, base)
+        row.amount = fmt
+        row.amountAsset = assetLabel(base)
+        row.amountLabel = `${fmt} ${assetLabel(base)}`
+      } else {
+        row.amountLabel = '—'
+      }
+    } else if (kind === 'cancel_order') {
+      row.direction = 'trade'
+      row.label = KIND_LABEL.cancel_order
+      row.party = s(t.order_id) ? `Order #${s(t.order_id)}` : null
+      row.amountLabel = '—'
+    } else if (kind === 'add_liquidity' || kind === 'add_liq') {
+      const poolId = s(t.pool_id)
+      const [a0, a1] = poolId ? assetsFromPoolId(poolId) : ['FPL', 'FPL']
+      row.direction = 'trade'
+      row.label = KIND_LABEL.add_liquidity
+      row.party = poolId ? poolId.toUpperCase() : null
+      const parts: string[] = []
+      if (hasPositiveRaw(t.amt_a)) parts.push(`${formatAssetAmount(t.amt_a, a0)} ${assetLabel(a0)}`)
+      if (hasPositiveRaw(t.amt_b)) parts.push(`${formatAssetAmount(t.amt_b, a1)} ${assetLabel(a1)}`)
+      row.amountLabel = parts.length ? parts.join(' + ') : '—'
+      if (hasPositiveRaw(t.amt_a)) {
+        row.amount = formatAssetAmount(t.amt_a, a0)
+        row.amountAsset = assetLabel(a0)
+      }
+    } else if (kind === 'remove_liquidity' || kind === 'remove_liq') {
+      const poolId = s(t.pool_id)
+      row.direction = 'trade'
+      row.label = KIND_LABEL.remove_liquidity
+      row.party = poolId ? poolId.toUpperCase() : null
+      if (hasPositiveRaw(t.lp_burn)) {
+        const fmtLp = formatAssetAmount(t.lp_burn, 'FPL')
+        row.amount = fmtLp
+        row.amountAsset = 'LP'
+        row.amountLabel = `${fmtLp} LP`
+      } else {
+        row.amountLabel = '—'
+      }
+    } else if (
+      kind === 'lend_supply' ||
+      kind === 'lend_withdraw' ||
+      kind === 'lend_borrow' ||
+      kind === 'lend_repay' ||
+      kind === 'lend_set_price'
+    ) {
+      const mktId = s(t.market_id)
+      const mktAsset = mktId ? assetFromMarketId(mktId) : 'FPL'
+      const lbl = assetLabel(mktAsset)
       row.label = KIND_LABEL[kind]
-      row.party = kind === 'set_external_addrs' && t.chain ? `${s(t.chain)} ${s(t.address)}`.trim() : null
+      row.party = mktId ? `${lbl} market (${mktId})` : null
+      if (kind === 'lend_withdraw') {
+        row.direction = 'in'
+        if (hasPositiveRaw(t.shares)) {
+          const fmtShares = formatAssetAmount(t.shares, mktAsset)
+          row.amount = fmtShares
+          row.amountAsset = lbl
+          row.amountLabel = `+${fmtShares} ${lbl} shares`
+        } else {
+          row.amountLabel = '—'
+        }
+      } else if (kind === 'lend_borrow') {
+        row.direction = 'in'
+        if (hasPositiveRaw(t.amount)) {
+          const fmt = formatAssetAmount(t.amount, mktAsset)
+          row.amount = fmt
+          row.amountAsset = lbl
+          row.amountLabel = `+${fmt} ${lbl}`
+        } else {
+          row.amountLabel = '—'
+        }
+      } else if (kind === 'lend_supply' || kind === 'lend_repay') {
+        row.direction = 'out'
+        if (hasPositiveRaw(t.amount)) {
+          const fmt = formatAssetAmount(t.amount, mktAsset)
+          row.amount = fmt
+          row.amountAsset = lbl
+          row.amountLabel = `−${fmt} ${lbl}`
+        } else {
+          row.amountLabel = '—'
+        }
+      } else {
+        row.direction = 'trade'
+        row.amountLabel = '—'
+      }
+    } else if (kind === 'rail_deposit' || kind === 'eth_v3_deposit') {
+      row.direction = 'in'
+      row.label = KIND_LABEL[kind]
+      row.party = s(t.to || t.credit_to) || (s(t.deposit_id) ? `${s(t.deposit_id).slice(0, 12)}…` : null)
+      if (formattedTopAmt) {
+        row.amountLabel = `+${formattedTopAmt} ${assetLabel(assetCode)}`
+      } else {
+        row.amountLabel = assetLabel(assetCode)
+      }
+    } else if (kind === 'rail_withdraw') {
+      row.direction = 'out'
+      row.label = KIND_LABEL.rail_withdraw
+      row.party = s(t.external_to || t.destination) || null
+      row.amountLabel = formattedTopAmt ? `−${formattedTopAmt} ${assetLabel(assetCode)}` : '—'
+    } else if (kind === 'set_external_addrs' || kind === 'set_external_addr') {
+      row.direction = 'trade'
+      row.label = KIND_LABEL.set_external_addrs
+      row.party = t.chain ? `${s(t.chain)} ${s(t.address)}`.trim() : s(t.address) || null
+      row.amountLabel = '—'
+    } else if (kind === 'vault_open' || kind === 'vault_lock') {
+      row.direction = 'trade'
+      row.label = KIND_LABEL[kind]
+      row.party = s(t.destination) || null
+      row.amountLabel = '—'
+    } else if (kind === 'bond' || kind === 'bond_v2' || kind === 'unbond' || kind === 'complete_unbond' || kind === 'unjail' || kind === 'reactivate') {
+      row.direction = kind === 'complete_unbond' ? 'in' : 'out'
+      row.label = KIND_LABEL[kind]
+      row.party = s(t.validator) || null
+      row.amountLabel = formattedTopAmt ? `${formattedTopAmt} FPL` : '—'
+    } else if (kind === 'tx') {
+      row.label = KIND_LABEL.tx
+      row.direction = 'trade'
+      row.party = 'DeFi / protocol tx'
+      row.amountLabel = hasPositiveRaw(t.fee) ? `fee ${formatAssetAmount(t.fee, 'FPL')} FPL` : '—'
+    } else if (KIND_LABEL[kind]) {
+      row.label = KIND_LABEL[kind]
+      row.party = s(t.pool_id || t.market_id || t.validator) || null
       row.direction = 'trade'
       if (!row.amount) row.amountLabel = '—'
     }
+
     rows.push(row)
   }
 
@@ -198,7 +440,7 @@ export function buildPlActivity({ self, recentTxs, fills, orders, tip, nowMs }: 
 
   // Newest first; stable for equal heights (fills keep engine order).
   return rows
-    .map((r, i) => ({ r, i }))
-    .sort((a, b) => (b.r.height ?? 0) - (a.r.height ?? 0) || a.i - b.i)
-    .map(({ r }) => r)
+    .map((row, idx) => ({ row, idx }))
+    .sort((a, b) => (b.row.height ?? 0) - (a.row.height ?? 0) || a.idx - b.idx)
+    .map((x) => x.row)
 }
