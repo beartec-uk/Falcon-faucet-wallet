@@ -170,16 +170,16 @@ export default function PeerMeshCanvas({
     const h = rect.height || canvas.clientHeight || 600
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
     for (const n of nodes) {
-      minX = Math.min(minX, n.x - 62)
-      maxX = Math.max(maxX, n.x + 62)
-      minY = Math.min(minY, n.y - 68)
-      maxY = Math.max(maxY, n.y + 62)
+      minX = Math.min(minX, n.x - 66)
+      maxX = Math.max(maxX, n.x + 66)
+      minY = Math.min(minY, n.y - 72)
+      maxY = Math.max(maxY, n.y + 66)
     }
     const spanX = Math.max(200, maxX - minX)
     const spanY = Math.max(200, maxY - minY)
     const padX = mobile ? 20 : 52
-    const padTop = mobile ? 70 : 64
-    const padBottom = mobile ? 50 : 42
+    const padTop = mobile ? 64 : 62
+    const padBottom = mobile ? 52 : 44
     const availW = Math.max(120, w - padX * 2)
     const availH = Math.max(120, h - padTop - padBottom)
     const zoom = Math.max(0.42, Math.min(1.55, Math.min(availW / spanX, availH / spanY)))
@@ -188,7 +188,6 @@ export default function PeerMeshCanvas({
     viewRef.current.panY = -(minY + maxY) * 0.5 + (padTop - padBottom) * (0.25 / zoom)
   }
 
-  // Reconcile simulation nodes when graph topology changes (without restarting rAF).
   useEffect(() => {
     const prevById = simRef.current.byId
     const hadPrev = prevById.size > 0
@@ -215,7 +214,6 @@ export default function PeerMeshCanvas({
     redrawRef.current?.()
   }, [graph, reducedMotion, isMobile])
 
-  // Sync consensus round timing.
   const consensusRound = consensus?.round ?? null
   const consensusInterval = consensus?.intervalMs ?? 3000
   useEffect(() => {
@@ -229,7 +227,6 @@ export default function PeerMeshCanvas({
     redrawRef.current?.()
   }, [consensusRound, consensusInterval])
 
-  // Trigger block propagation wave + ingress tx pulses on each sealed block poll.
   useEffect(() => {
     if (!event || !event.blocks.length) return
     const now = Date.now()
@@ -302,8 +299,6 @@ export default function PeerMeshCanvas({
     redrawRef.current?.()
   }
 
-  // Main render & physics loop — pauses completely when document.hidden,
-  // and runs once-on-change when prefers-reduced-motion is enabled.
   useEffect(() => {
     const canvas = canvasRef.current
     const container = containerRef.current
@@ -314,7 +309,7 @@ export default function PeerMeshCanvas({
     let raf = 0
     let alive = true
     let frames = 0
-    let lastFpsAt = performance.now()
+    let lastFpsAt = Date.now()
     let lastIngressSpawn = 0
 
     const resize = () => {
@@ -332,7 +327,8 @@ export default function PeerMeshCanvas({
       }
     }
 
-    const drawFrame = (nowMs: number) => {
+    const drawFrame = () => {
+      const nowMs = Date.now()
       const { nodes, edges, byId } = simRef.current
       if (!reducedMotion && settleEnergyRef.current > 0.004 && nodes.length > 0) {
         settleEnergyRef.current = stepForceMesh(nodes, edges, { dt: 0.9 })
@@ -349,8 +345,8 @@ export default function PeerMeshCanvas({
       ctx.fillStyle = COLORS.bg
       ctx.fillRect(0, 0, w, h)
 
-      const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.5, 20, w * 0.5, h * 0.5, Math.max(w, h) * 0.6)
-      bgGrad.addColorStop(0, 'rgba(30, 41, 59, 0.34)')
+      const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.5, 20, w * 0.5, h * 0.5, Math.max(w, h) * 0.65)
+      bgGrad.addColorStop(0, 'rgba(30, 41, 59, 0.35)')
       bgGrad.addColorStop(1, 'rgba(2, 6, 23, 0)')
       ctx.fillStyle = bgGrad
       ctx.fillRect(0, 0, w, h)
@@ -360,26 +356,34 @@ export default function PeerMeshCanvas({
       ctx.scale(zoom, zoom)
       ctx.translate(panX, panY)
 
-      // 1) Geography cluster halos & labels.
+      // 1) Multi-node geography halos (single-node regions show geography in their node sublabel).
       const clusters = geoClusters(nodes)
+      const multiGeoIds = new Set(clusters.filter((c) => c.nodeIds.length >= 2).map((c) => c.id))
       for (const c of clusters) {
+        if (!multiGeoIds.has(c.id)) continue
         ctx.save()
         ctx.beginPath()
         ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2)
-        ctx.fillStyle = `${c.color}0D`
+        ctx.fillStyle = `${c.color}0C`
         ctx.fill()
         ctx.setLineDash([4, 5])
         ctx.lineWidth = 1 / zoom
-        ctx.strokeStyle = `${c.color}38`
+        ctx.strokeStyle = `${c.color}36`
         ctx.stroke()
         ctx.setLineDash([])
 
+        // Place region label radially outward from origin so it never collides with center nodes.
+        const dist = Math.hypot(c.x, c.y) || 1
+        const ox = c.x / dist
+        const oy = c.y / dist
+        const lx = c.x + ox * (c.r + 12 / zoom)
+        const ly = c.y + oy * (c.r + 12 / zoom)
         const fontSize = Math.max(9, Math.min(11, 10 / zoom))
         ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillStyle = `${c.color}CC`
-        ctx.fillText(c.label.toUpperCase(), c.x, c.y - c.r - 8 / zoom)
+        ctx.fillStyle = `${c.color}D8`
+        ctx.fillText(c.label.toUpperCase(), lx, ly)
         ctx.restore()
       }
 
@@ -419,16 +423,16 @@ export default function PeerMeshCanvas({
         if (edge.kind === 'ingress') {
           ctx.setLineDash([5, 5])
           ctx.lineWidth = (touchesActive ? 2 : 1.3) / zoom
-          ctx.strokeStyle = touchesActive ? 'rgba(212, 146, 42, 0.8)' : 'rgba(212, 146, 42, 0.35)'
+          ctx.strokeStyle = touchesActive ? 'rgba(212, 146, 42, 0.85)' : 'rgba(212, 146, 42, 0.4)'
         } else {
-          ctx.lineWidth = (touchesActive ? 2.1 : bothHubs ? 1.8 : 1.05) / zoom
+          ctx.lineWidth = (touchesActive ? 2.1 : bothHubs ? 1.9 : 1.05) / zoom
           ctx.strokeStyle = touchesActive
             ? 'rgba(212, 146, 42, 0.85)'
             : bothHubs
-              ? 'rgba(192, 120, 56, 0.55)'
+              ? 'rgba(192, 120, 56, 0.6)'
               : a.online && b.online
-                ? 'rgba(56, 189, 248, 0.22)'
-                : 'rgba(71, 85, 105, 0.2)'
+                ? 'rgba(56, 189, 248, 0.24)'
+                : 'rgba(71, 85, 105, 0.22)'
         }
         ctx.stroke()
         ctx.restore()
@@ -563,8 +567,8 @@ export default function PeerMeshCanvas({
         const isPacker = n.id === nextPacker
         const isVoter = votersSet.has(n.id)
         const flash = flashUntilRef.current.get(n.id)
-        const flashing = flash && nowMs < flash.until ? (flash.until - nowMs) / 1500 : 0
-        const arrivalGlow = arrivedAt.get(n.id) ?? 0
+        const flashing = flash && nowMs < flash.until ? Math.min(1, Math.max(0, (flash.until - nowMs) / 1500)) : 0
+        const arrivalGlow = Math.min(1, Math.max(0, arrivedAt.get(n.id) ?? 0))
 
         let ringColor = COLORS.slate
         if (n.kind === 'wallet') ringColor = COLORS.gold
@@ -577,7 +581,7 @@ export default function PeerMeshCanvas({
 
         ctx.save()
 
-        const auraStrength = Math.max(flashing, arrivalGlow, n.isHub && n.online ? 0.25 + breath * 0.12 : 0)
+        const auraStrength = Math.min(1, Math.max(flashing, arrivalGlow, n.isHub && n.online ? 0.25 + breath * 0.12 : 0))
         if (auraStrength > 0.02) {
           const rAura = n.radius * (1.8 + auraStrength * 0.7)
           const grad = ctx.createRadialGradient(n.x, n.y, n.radius * 0.5, n.x, n.y, rAura)
@@ -654,8 +658,11 @@ export default function PeerMeshCanvas({
           if (n.kind === 'wallet') {
             const wc = walletCountRef.current
             subParts.push(wc == null ? n.host : `${wc.toLocaleString('en-US')} wallets`)
-          } else if (n.host) {
-            subParts.push(n.host)
+          } else {
+            if (n.host) subParts.push(n.host)
+            if (!multiGeoIds.has(n.locationId) && n.locationLabel) {
+              subParts.push(n.locationLabel.split(',')[0])
+            }
           }
           const sub = subParts.join(' · ')
           if (sub) {
@@ -683,19 +690,19 @@ export default function PeerMeshCanvas({
     }
 
     redrawRef.current = () => {
-      if (!document.hidden) drawFrame(performance.now())
+      if (!document.hidden) drawFrame()
     }
 
     const ro = new ResizeObserver(() => {
       resize()
-      drawFrame(performance.now())
+      drawFrame()
     })
     ro.observe(container)
     resize()
 
-    const tick = (nowMs: number) => {
+    const tick = () => {
       if (!alive) return
-      if (!document.hidden) drawFrame(nowMs)
+      if (!document.hidden) drawFrame()
       if (!reducedMotion && !document.hidden) {
         raf = requestAnimationFrame(tick)
       }
@@ -708,13 +715,13 @@ export default function PeerMeshCanvas({
         raf = 0
         if (fpsRef?.current) fpsRef.current.textContent = 'paused'
       } else {
-        drawFrame(performance.now())
+        drawFrame()
         if (!reducedMotion && !raf) raf = requestAnimationFrame(tick)
       }
     }
 
     document.addEventListener('visibilitychange', onVisibility)
-    drawFrame(performance.now())
+    drawFrame()
     if (!reducedMotion && !document.hidden) raf = requestAnimationFrame(tick)
 
     return () => {

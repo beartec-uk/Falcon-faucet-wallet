@@ -331,7 +331,7 @@ export default function NetworkMapClient() {
 
       {/* Mobile slide-over drawer */}
       {mobileDrawer && (
-        <aside className="md:hidden fixed inset-x-0 top-12 bottom-[76px] z-20 bg-[#0F172A]/98 border-t border-slate-800 p-3.5 overflow-y-auto flex flex-col gap-3">
+        <aside className="md:hidden absolute inset-x-0 top-12 bottom-[76px] z-20 bg-[#0F172A] border-t border-slate-800 p-3.5 overflow-y-auto flex flex-col gap-3">
           {sidebarContent}
         </aside>
       )}
