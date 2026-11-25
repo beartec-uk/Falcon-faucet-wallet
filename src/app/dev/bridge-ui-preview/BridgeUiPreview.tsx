@@ -3,6 +3,8 @@
 
 import { operatorCapacityFromFeed } from '@/lib/btc-operator-capacity'
 import { tn4DepositStatusView, type Tn4StatusInput } from '@/lib/tn4-deposit-status'
+import PendingBridgedBalance from '@/components/PendingBridgedBalance'
+import { pendingLabelForAsset, type BridgedPendingTotals } from '@/lib/pending-bridged-deposits'
 
 const CONFIRM_TX = 'ab'.repeat(32)
 
@@ -27,6 +29,15 @@ const LIVE_CAP = operatorCapacityFromFeed({
     { name: 'fpl-op-falcon1', availableSats: 8728735795 },
   ],
 })
+
+
+const WALLET_PENDING: BridgedPendingTotals = { fbtcSats: 21_000_000, fusdc: 0, feth: 0 }
+
+const WALLET_ROWS: Array<{ id: 'fusdc' | 'feth' | 'fbtc'; symbol: string; subtitle: string; balance: string }> = [
+  { id: 'fusdc', symbol: 'F-USDC', subtitle: 'Bridged USDC on Falcon', balance: '12.5000' },
+  { id: 'feth', symbol: 'FETH', subtitle: 'Bridged ETH on Falcon', balance: '0.500000' },
+  { id: 'fbtc', symbol: 'FBTC', subtitle: 'Bridged BTC on Falcon', balance: '1.23400000' },
+]
 
 function fmt(n: number, d: number) {
   return n.toFixed(d).replace(/\.?0+$/, '')
@@ -54,6 +65,31 @@ export default function BridgeUiPreview() {
             ({LIVE_CAP.onlineCount} online)
           </span>
         </div>
+      </div>
+      <div
+        data-testid="bridged-assets"
+        className="rounded-xl border border-slate-800 bg-[#0F172A] p-4 mb-6 w-full max-w-xl"
+      >
+        <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold mb-3">
+          Bridged assets
+        </div>
+        <div className="space-y-2">
+          {WALLET_ROWS.map((row) => (
+            <div key={row.id} data-testid={`asset-${row.id}`} className="wallet-asset-row rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-white">{row.symbol}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{row.subtitle}</div>
+                </div>
+                <PendingBridgedBalance
+                  balanceLabel={row.balance}
+                  pendingLabel={pendingLabelForAsset(row.id, WALLET_PENDING)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-slate-600 mt-2">F-USDC and FETH have no account-scoped pending-deposit API, so only FBTC shows a pending total. At a 390px viewport the amount wraps under the balance as “+0.21 pending”.</p>
       </div>
       <div className="grid gap-3 md:grid-cols-2 max-w-4xl">
         {FIXTURES.map(({ title, d, fundingSats }) => {

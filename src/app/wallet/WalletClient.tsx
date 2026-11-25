@@ -108,6 +108,13 @@ import {
 } from '@/lib/create-evm-wallet'
 import { type UsdcBridgeManifest } from '@/lib/bridge-config'
 import BridgeDepositPanel from '@/components/BridgeDepositPanel'
+import PendingBridgedBalance from '@/components/PendingBridgedBalance'
+import { listDeposits } from '@/lib/tn4-bridge'
+import {
+  bridgedPendingTotals,
+  pendingLabelForAsset,
+  type BridgedPendingTotals,
+} from '@/lib/pending-bridged-deposits'
 import { fetchDestLockMintStatus } from '@/lib/pl-dest-lock'
 import {
   clearDestLockPending,
@@ -397,6 +404,11 @@ export default function WalletPage() {
   const [xrplClassicBal, setXrplClassicBal] = useState<string | null>(null)
   const [nativeBalLoading, setNativeBalLoading] = useState(false)
   const [nativeRefreshKey, setNativeRefreshKey] = useState(0)
+  const [bridgedPending, setBridgedPending] = useState<BridgedPendingTotals>({
+    fbtcSats: 0,
+    fusdc: 0,
+    feth: 0,
+  })
   const [bridgeMissing, setBridgeMissing] = useState(false)
   const bridgeAutoProvisioned = useRef(false)
 
@@ -630,18 +642,38 @@ export default function WalletPage() {
   }, [networkKey, network.networkId])
 
   /** Falcon ledger + multi-chain native balances (when on those tabs). */
+  const refreshBridgedPending = useCallback(async () => {
+    if (!wallet) {
+      setBridgedPending({ fbtcSats: 0, fusdc: 0, feth: 0 })
+      return
+    }
+    const account = plAccountId(wallet)
+    if (!account) return
+    try {
+      const rows = await listDeposits(account)
+      setBridgedPending(bridgedPendingTotals({ tn4Deposits: rows }))
+    } catch {
+      /* leave the last successful total; Refresh can retry */
+    }
+  }, [wallet])
+
   const refreshAllBalances = useCallback(() => {
     if (wallet) void refreshBalance(plAccountId(wallet))
+    void refreshBridgedPending()
     if (walletSection === 'multichain' || walletSection === 'bridge') {
       setNativeRefreshKey((k) => k + 1)
     }
-  }, [wallet, walletSection, refreshBalance])
+  }, [wallet, walletSection, refreshBalance, refreshBridgedPending])
 
   useEffect(() => {
     if (wallet) {
       refreshBalance(plAccountId(wallet))
     }
   }, [networkKey, wallet, refreshBalance])
+
+  useEffect(() => {
+    void refreshBridgedPending()
+  }, [refreshBridgedPending])
 
   useEffect(() => {
     if (
@@ -3401,7 +3433,11 @@ export default function WalletPage() {
                       if (q && !asset.symbol.toLowerCase().includes(q) && !asset.subtitle.toLowerCase().includes(q)) return false
                       if (hideZeroBalances) {
                         const fb = parseFalconBalances(account)
-                        if (falconRowBalance(asset.id, fb) <= 0) return false
+                        const pending = pendingLabelForAsset(
+                          asset.id as 'fusdc' | 'feth' | 'fbtc',
+                          bridgedPending,
+                        )
+                        if (falconRowBalance(asset.id, fb) <= 0 && !pending) return false
                       }
                       return true
                     }).map((asset, assetIdx) => {
@@ -3499,9 +3535,30 @@ export default function WalletPage() {
                                 <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{detail}</div>
                               </div>
                             </div>
-                            <div className="font-mono text-base font-semibold text-slate-100 shrink-0 tabular-nums">
-                              {balanceLabel}
-                            </div>
+                            <PendingBridgedBalance
+                              balanceLabel={balanceLabel}
+                              pendingLabel={
+                                asset.id === 'falcon'
+                                  ? null
+                                  : pendingLabelForAsset(
+                                      asset.id as 'fusdc' | 'feth' | 'fbtc',
+                                      bridgedPending,
+                                    )
+                              }
+                              onPendingClick={() => {
+                                if (asset.id === 'fbtc') {
+                                  setBridgeInitialMode('deposit')
+                                  setBridgeInitialRoute('fbtc-btc')
+                                } else if (asset.id === 'feth') {
+                                  setBridgeInitialMode('deposit')
+                                  setBridgeInitialRoute('feth-sepolia')
+                                } else if (asset.id === 'fusdc') {
+                                  setBridgeInitialMode('deposit')
+                                  setBridgeInitialRoute('fusdc-sepolia')
+                                }
+                                setWalletSection('bridge')
+                              }}
+                            />
                           </div>
 
                         </div>
