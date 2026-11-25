@@ -631,12 +631,15 @@ function CameraRig({
     const cam = camera as THREE.PerspectiveCamera
     const aspect = size.width / Math.max(1, size.height)
     const half = THREE.MathUtils.degToRad(cam.fov / 2)
-    const fitR = R_LAYOUT + 1.8
+    const fitR = R_LAYOUT + (isMobile ? 1.1 : 1.8)
     const elevation = THREE.MathUtils.degToRad(CAMERA_ELEVATION_DEG)
     const polar = Math.PI / 2 - elevation
     const azimuth = THREE.MathUtils.degToRad(CAMERA_AZIMUTH_DEG)
+    // Fit the planar disc in both axes. On a tall phone, width is the limit
+    // (`aspect < 1` already inflates `base`); don't then stand even further back.
     const base = fitR / (Math.tan(half) * Math.min(1, aspect))
-    const dist = (base / Math.max(0.35, Math.sin(elevation))) * (isMobile ? 1.08 : 0.98)
+    const tilt = 1 / Math.max(0.45, Math.sin(elevation))
+    const dist = base * tilt * (isMobile ? 0.5 : 0.96)
     cam.position.set(
       Math.sin(polar) * Math.sin(azimuth) * dist,
       Math.cos(polar) * dist,
