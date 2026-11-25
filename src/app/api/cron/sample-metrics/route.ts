@@ -2,7 +2,7 @@
 // Vercel cron — every 5 min, sample the PL status into the shared 24h store.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { appendMetricSamples, getAllStoredSeries, pruneMetricSamples } from '@/lib/metric-store'
+import { appendMetricSamples, getLatestStoredCounters, pruneMetricSamples } from '@/lib/metric-store'
 import {
   collectNetworkSample,
   counterValues,
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   try {
     const at = Date.now()
     const sample = await collectNetworkSample(at)
-    const stored = await getAllStoredSeries()
+    const stored = await getLatestStoredCounters(at)
     const prev = previousSampleFromCounters(stored, at)
     const values = seriesValues(prev, sample)
     await appendMetricSamples({ ...values, ...counterValues(sample) }, at)
