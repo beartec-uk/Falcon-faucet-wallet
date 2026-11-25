@@ -369,7 +369,7 @@ function NodeObject({
       )}
 
       <Label
-        y={-(size + (node.isArchive ? 0.75 : 0.45))}
+        y={node.isHub ? size + (node.isSeed ? 1.0 : 0.45) : -(size + (node.isArchive ? 0.75 : 0.45))}
         title={node.label}
         sub={sub}
         accent={node.isHub ? C.goldHot : node.kind === 'wallet' ? C.gold : undefined}
@@ -594,7 +594,7 @@ function CameraRig({
     const aspect = size.width / Math.max(1, size.height)
     const half = THREE.MathUtils.degToRad(cam.fov / 2)
     const fitR = R_LAYOUT + 1.6
-    const dist = fitR / (Math.tan(half) * Math.min(1, aspect)) * 0.92
+    const dist = fitR / (Math.tan(half) * Math.min(1, aspect)) * (isMobile ? 1.12 : 0.92)
     const dir = new THREE.Vector3(0.18, 0.32, 1).normalize()
     cam.position.copy(dir.multiplyScalar(dist))
     cam.near = 0.1
