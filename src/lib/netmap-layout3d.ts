@@ -1,8 +1,9 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
-// Pure 3D force-directed layout + renderer selection for the /scan/map 3D mesh.
-// No three.js imports here so it stays testable and out of the initial bundle.
+// Planar 3D layout (same 2D force mesh, flattened to y=0) + renderer selection
+// for /scan/map. No three.js imports, so it stays testable and out of the
+// initial bundle.
 
-import type { MeshEdge, MeshNode } from '@/lib/netmap-layout'
+import { solveForceMesh, stepForceMesh, type MeshEdge, type MeshNode } from '@/lib/netmap-layout'
 
 export type Vec3 = [number, number, number]
 
@@ -11,7 +12,7 @@ type LayoutEdge = Pick<MeshEdge, 'source' | 'target' | 'kind'>
 
 export interface Force3DOpts {
   iterations?: number
-  /** Ideal spring length between peers (world units). */
+  /** Ideal spring length between peers (world units). Unused for the 2D solver path. */
   restLength?: number
   repulsion?: number
   springK?: number
@@ -23,31 +24,58 @@ export interface Force3DOpts {
   prev?: Map<string, Vec3>
 }
 
-function hashSeed(s: string): number {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
+/** Typical radius of `solveForceMesh` before we scale into world units. */
+const LAYOUT_2D_UNIT = 200
+
+function stubNode(n: LayoutNode): MeshNode {
+  return {
+    id: n.id,
+    label: n.id,
+    kind: n.kind,
+    isHub: n.isHub,
+    isArchive: false,
+    online: true,
+    jailed: false,
+    inactive: false,
+    host: '',
+    locationId: n.locationId,
+    locationLabel: n.locationLabel,
+    locationColor: '',
+    degree: 0,
+    tip: null,
+    lag: null,
+    packs: 0,
+    perf: null,
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    radius: n.kind === 'wallet' ? 17 : n.isHub ? 22 : n.kind === 'observer' ? 11 : 16,
   }
-  return (h >>> 0) / 4294967296
+}
+
+function stubEdge(e: LayoutEdge): MeshEdge {
+  return {
+    id: `${e.kind}:${e.source}--${e.target}`,
+    source: e.source,
+    target: e.target,
+    kind: e.kind,
+    mutual: true,
+  }
 }
 
 /**
- * Deterministic 3D force-directed layout over real peer (and ingress) edges.
- * Every node, hub or not, is a free equal peer: nothing is pinned, there is no
- * root, and the result is re-centred on the centroid so no seat sits "on top".
+ * Deterministic force-directed layout on a single plane (y = 0).
+ * Uses the same 2D solver as the Canvas mesh (`solveForceMesh`), then maps
+ * (x, y) → (x, 0, z). Every node, hub or not, is a free equal peer: nothing
+ * is pinned, there is no root, and the result is re-centred so no seat sits
+ * "on top".
  */
 export function solveForceMesh3D(
   nodes: LayoutNode[],
   edges: LayoutEdge[],
   opts: Force3DOpts = {},
 ): Map<string, Vec3> {
-  const iterations = opts.iterations ?? 260
-  const rest = opts.restLength ?? 3.2
-  const repulsion = opts.repulsion ?? 9
-  const springK = opts.springK ?? 0.06
-  const gravity = opts.centerGravity ?? 0.02
-  const geo = opts.geoCohesion ?? 0.025
   const targetRadius = opts.targetRadius ?? 7
   const prev = opts.prev
   // Canonical order so the result never depends on input order (e.g. which hub is listed first).
@@ -61,164 +89,71 @@ export function solveForceMesh3D(
     return out
   }
 
-  // Fibonacci-sphere start, ordered by region then id (stable & role-agnostic).
-  const ordered = nodes
-    .map((node, i) => ({ node, i }))
-    .sort(
-      (a, b) =>
-        a.node.locationId.localeCompare(b.node.locationId) ||
-        a.node.id.localeCompare(b.node.id, 'en', { numeric: true }),
-    )
-  const px = new Float64Array(n)
-  const py = new Float64Array(n)
-  const pz = new Float64Array(n)
-  const golden = Math.PI * (3 - Math.sqrt(5))
-  ordered.forEach(({ node, i }, k) => {
-    const p = prev?.get(node.id)
-    if (p) {
-      px[i] = p[0]
-      py[i] = p[1]
-      pz[i] = p[2]
-      return
-    }
-    const y = 1 - (2 * (k + 0.5)) / n
-    const r = Math.sqrt(Math.max(0, 1 - y * y))
-    const th = k * golden + hashSeed(node.id) * 0.4
-    const R = rest * Math.cbrt(n) * 0.9
-    px[i] = Math.cos(th) * r * R
-    py[i] = y * R
-    pz[i] = Math.sin(th) * r * R
-  })
+  const meshNodes = nodes.map(stubNode)
+  const meshEdges = edges.map(stubEdge)
+  const hasPrev = Boolean(prev && meshNodes.some((n) => prev!.has(n.id)))
 
-  const idx = new Map<string, number>()
-  nodes.forEach((node, i) => idx.set(node.id, i))
-  const springs: Array<[number, number, number]> = []
-  for (const e of edges) {
-    const a = idx.get(e.source)
-    const b = idx.get(e.target)
-    if (a == null || b == null || a === b) continue
-    const sameGeo = nodes[a].locationLabel && nodes[a].locationId === nodes[b].locationId
-    const len = e.kind === 'ingress' ? rest * 0.85 : sameGeo ? rest * 0.8 : rest
-    springs.push([a, b, len])
+  if (hasPrev && prev) {
+    const scaleUp = LAYOUT_2D_UNIT / targetRadius
+    const placed = meshNodes.filter((n) => prev.has(n.id))
+    const missing = meshNodes.filter((n) => !prev.has(n.id))
+    for (const n of placed) {
+      const p = prev.get(n.id)!
+      n.x = p[0] * scaleUp
+      n.y = p[2] * scaleUp
+      n.vx = 0
+      n.vy = 0
+    }
+    if (missing.length > 0) {
+      const cx = placed.reduce((s, n) => s + n.x, 0) / Math.max(1, placed.length)
+      const cy = placed.reduce((s, n) => s + n.y, 0) / Math.max(1, placed.length)
+      const ring = LAYOUT_2D_UNIT * 0.6
+      missing.forEach((n, i) => {
+        const th = (i / missing.length) * Math.PI * 2
+        n.x = cx + Math.cos(th) * ring
+        n.y = cy + Math.sin(th) * ring
+        n.vx = 0
+        n.vy = 0
+      })
+    }
+    const steps = opts.iterations ?? 120
+    for (let i = 0; i < steps; i++) stepForceMesh(meshNodes, meshEdges)
+  } else {
+    solveForceMesh(meshNodes, meshEdges, opts.iterations ?? 180)
   }
 
-  const vx = new Float64Array(n)
-  const vy = new Float64Array(n)
-  const vz = new Float64Array(n)
-  const fx = new Float64Array(n)
-  const fy = new Float64Array(n)
-  const fz = new Float64Array(n)
-  const damping = 0.85
-
-  for (let it = 0; it < iterations; it++) {
-    fx.fill(0)
-    fy.fill(0)
-    fz.fill(0)
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        let dx = px[j] - px[i]
-        let dy = py[j] - py[i]
-        let dz = pz[j] - pz[i]
-        let d2 = dx * dx + dy * dy + dz * dz
-        if (d2 < 1e-6) {
-          const a = (i * 1.7 + j * 2.3) % (Math.PI * 2)
-          dx = Math.cos(a) * 0.01
-          dy = Math.sin(a) * 0.01
-          dz = 0.01
-          d2 = dx * dx + dy * dy + dz * dz
-        }
-        const d = Math.sqrt(d2)
-        const f = repulsion / Math.max(0.25, d2)
-        const ux = dx / d
-        const uy = dy / d
-        const uz = dz / d
-        fx[i] -= ux * f
-        fy[i] -= uy * f
-        fz[i] -= uz * f
-        fx[j] += ux * f
-        fy[j] += uy * f
-        fz[j] += uz * f
-      }
-    }
-    for (const [a, b, len] of springs) {
-      const dx = px[b] - px[a]
-      const dy = py[b] - py[a]
-      const dz = pz[b] - pz[a]
-      const d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-3
-      const f = springK * (d - len)
-      fx[a] += (dx / d) * f
-      fy[a] += (dy / d) * f
-      fz[a] += (dz / d) * f
-      fx[b] -= (dx / d) * f
-      fy[b] -= (dy / d) * f
-      fz[b] -= (dz / d) * f
-    }
-    const groups = new Map<string, { x: number; y: number; z: number; c: number }>()
-    for (let i = 0; i < n; i++) {
-      if (!nodes[i].locationLabel) continue
-      const g = groups.get(nodes[i].locationId) ?? { x: 0, y: 0, z: 0, c: 0 }
-      g.x += px[i]
-      g.y += py[i]
-      g.z += pz[i]
-      g.c += 1
-      groups.set(nodes[i].locationId, g)
-    }
-    const cool = 1 - it / (iterations * 1.25)
-    for (let i = 0; i < n; i++) {
-      fx[i] -= px[i] * gravity
-      fy[i] -= py[i] * gravity
-      fz[i] -= pz[i] * gravity
-      const g = nodes[i].locationLabel ? groups.get(nodes[i].locationId) : undefined
-      if (g && g.c > 1) {
-        fx[i] += (g.x / g.c - px[i]) * geo
-        fy[i] += (g.y / g.c - py[i]) * geo
-        fz[i] += (g.z / g.c - pz[i]) * geo
-      }
-      vx[i] = (vx[i] + fx[i]) * damping
-      vy[i] = (vy[i] + fy[i]) * damping
-      vz[i] = (vz[i] + fz[i]) * damping
-      const sp = Math.sqrt(vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i])
-      const cap = 0.6 * Math.max(0.15, cool)
-      if (sp > cap) {
-        vx[i] = (vx[i] / sp) * cap
-        vy[i] = (vy[i] / sp) * cap
-        vz[i] = (vz[i] / sp) * cap
-      }
-      px[i] += vx[i]
-      py[i] += vy[i]
-      pz[i] += vz[i]
-    }
-  }
-
-  // Re-centre on centroid and scale to target radius (no seat is the origin/root).
+  // Re-centre on the 2D centroid, scale into world units, flatten to y = 0.
   let cx = 0
-  let cy = 0
   let cz = 0
-  for (let i = 0; i < n; i++) {
-    cx += px[i]
-    cy += py[i]
-    cz += pz[i]
+  for (const n of meshNodes) {
+    cx += n.x
+    cz += n.y
   }
   cx /= n
-  cy /= n
   cz /= n
   let maxR = 0
-  for (let i = 0; i < n; i++) {
-    maxR = Math.max(maxR, Math.hypot(px[i] - cx, py[i] - cy, pz[i] - cz))
+  for (const node of meshNodes) {
+    maxR = Math.max(maxR, Math.hypot(node.x - cx, node.y - cz))
   }
   const s = maxR > 1e-6 ? targetRadius / maxR : 1
-  for (let i = 0; i < n; i++) {
-    out.set(nodes[i].id, [(px[i] - cx) * s, (py[i] - cy) * s, (pz[i] - cz) * s])
+  for (const node of meshNodes) {
+    out.set(node.id, [(node.x - cx) * s, 0, (node.y - cz) * s])
   }
   return out
 }
 
-/** Control point for a gently arched link a→b, bowed away from the mesh centre. */
+/**
+ * Control point for a gently arched link a→b. On the y=0 plane the arch lifts
+ * straight up so tubes read as 3D above the floor; otherwise it bows away
+ * from the origin (legacy 3D-scatter path).
+ */
 export function linkControlPoint(a: Vec3, b: Vec3, bend = 0.18): Vec3 {
   const mx = (a[0] + b[0]) / 2
   const my = (a[1] + b[1]) / 2
   const mz = (a[2] + b[2]) / 2
   const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2])
+  const planar = Math.abs(a[1]) < 0.25 && Math.abs(b[1]) < 0.25
+  if (planar) return [mx, my + Math.max(0.12, len * bend), mz]
   const ml = Math.hypot(mx, my, mz)
   if (ml < 1e-6) return [mx, my + len * bend, mz]
   const k = (len * bend) / ml

@@ -4,8 +4,10 @@
 /**
  * Real-3D peer-to-peer mesh for /scan/map (react-three-fiber, lazy-loaded, no SSR).
  * Every object is procedural geometry + PBR materials lit by a generated room
- * environment, so it ships zero texture/model bytes. Driven by the same live
- * graph (/api/scan + /api/scan/topology) as the 2D Canvas fallback.
+ * environment, so it ships zero texture/model bytes. Nodes sit on a single
+ * plane (the same 2D force layout as the Canvas fallback, y = 0); the camera
+ * looks down at ~42° so the 3D objects still read in depth. Driven by the
+ * same live graph (/api/scan + /api/scan/topology).
  */
 
 import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState, type ComponentRef, type ReactNode } from 'react'
@@ -45,6 +47,11 @@ const C = {
 
 const HOP_MS = 280
 const R_LAYOUT = 7
+/** Default camera elevation above the plane (degrees). Polar = 90 − this. */
+const CAMERA_ELEVATION_DEG = 42
+const CAMERA_AZIMUTH_DEG = 28
+const MIN_POLAR_DEG = 18
+const MAX_POLAR_DEG = 75
 
 interface Curve {
   edge: MeshEdge
@@ -532,14 +539,45 @@ function Pulses({
   )
 }
 
+function Ground() {
+  const glow = useMemo(() => {
+    const c = document.createElement('canvas')
+    c.width = 512
+    c.height = 512
+    const g = c.getContext('2d')
+    if (!g) return null
+    const grd = g.createRadialGradient(256, 256, 16, 256, 256, 248)
+    grd.addColorStop(0, 'rgba(192, 120, 56, 0.18)')
+    grd.addColorStop(0.4, 'rgba(56, 189, 248, 0.06)')
+    grd.addColorStop(1, 'rgba(2, 6, 23, 0)')
+    g.fillStyle = grd
+    g.fillRect(0, 0, 512, 512)
+    const tex = new THREE.CanvasTexture(c)
+    tex.colorSpace = THREE.SRGBColorSpace
+    return tex
+  }, [])
+  useEffect(() => () => glow?.dispose(), [glow])
+  return (
+    <group>
+      {glow && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} raycast={() => null}>
+          <planeGeometry args={[36, 36]} />
+          <meshBasicMaterial map={glow} transparent opacity={1} depthWrite={false} />
+        </mesh>
+      )}
+      <gridHelper args={[22, 22, '#2A3A55', '#152033']} position={[0, -0.07, 0]} />
+    </group>
+  )
+}
+
 function GeoHalos({ halos }: { halos: { id: string; label: string; color: string; c: Vec3; r: number }[] }) {
-  // Faint region orbit only; region names are carried in each node's label.
+  // Faint region rings on the plane; region names live on each node's label.
   return (
     <group>
       {halos.map((h) => (
-        <mesh key={h.id} position={h.c} rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
-          <torusGeometry args={[h.r, 0.01, 6, 96]} />
-          <meshBasicMaterial color={h.color} transparent opacity={0.16} depthWrite={false} toneMapped={false} />
+        <mesh key={h.id} position={[h.c[0], 0.01, h.c[2]]} rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
+          <torusGeometry args={[h.r, 0.012, 6, 96]} />
+          <meshBasicMaterial color={h.color} transparent opacity={0.28} depthWrite={false} toneMapped={false} />
         </mesh>
       ))}
     </group>
@@ -593,16 +631,25 @@ function CameraRig({
     const cam = camera as THREE.PerspectiveCamera
     const aspect = size.width / Math.max(1, size.height)
     const half = THREE.MathUtils.degToRad(cam.fov / 2)
-    const fitR = R_LAYOUT + 1.6
-    const dist = fitR / (Math.tan(half) * Math.min(1, aspect)) * (isMobile ? 1.12 : 0.92)
-    const dir = new THREE.Vector3(0.18, 0.32, 1).normalize()
-    cam.position.copy(dir.multiplyScalar(dist))
+    const fitR = R_LAYOUT + 1.8
+    const elevation = THREE.MathUtils.degToRad(CAMERA_ELEVATION_DEG)
+    const polar = Math.PI / 2 - elevation
+    const azimuth = THREE.MathUtils.degToRad(CAMERA_AZIMUTH_DEG)
+    const base = fitR / (Math.tan(half) * Math.min(1, aspect))
+    const dist = (base / Math.max(0.35, Math.sin(elevation))) * (isMobile ? 1.08 : 0.98)
+    cam.position.set(
+      Math.sin(polar) * Math.sin(azimuth) * dist,
+      Math.cos(polar) * dist,
+      Math.sin(polar) * Math.cos(azimuth) * dist,
+    )
     cam.near = 0.1
     cam.far = 200
     cam.updateProjectionMatrix()
     const c = controls.current
     if (c) {
       c.target.set(0, 0, 0)
+      c.minPolarAngle = THREE.MathUtils.degToRad(MIN_POLAR_DEG)
+      c.maxPolarAngle = THREE.MathUtils.degToRad(MAX_POLAR_DEG)
       c.update()
     }
     invalidate()
@@ -810,13 +857,14 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
           onPointerMissed={() => setHovered(null)}
         >
           <color attach="background" args={[C.bg]} />
-          <fog attach="fog" args={[C.bg, 26, 70]} />
+          <fog attach="fog" args={[C.bg, 22, 55]} />
           <ambientLight intensity={0.25} />
           <hemisphereLight args={['#94A3B8', '#020617', 0.35]} />
           <directionalLight position={[8, 12, 10]} intensity={1.1} color="#FFE2B8" />
           <pointLight position={[-12, -6, -8]} intensity={40} distance={60} color={C.cyan} />
           <StudioEnv />
           <Stars count={isMobile ? 260 : 700} />
+          <Ground />
           <GeoHalos halos={halos} />
           <Links curves={curves} activeId={activeId} />
           <Pulses curves={curves} anim={anim} pairIndex={pairIndex} max={isMobile ? 80 : 180} />
@@ -847,7 +895,9 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
             enableDamping
             dampingFactor={0.08}
             autoRotate={autoRotate}
-            autoRotateSpeed={0.5}
+            autoRotateSpeed={0.4}
+            minPolarAngle={THREE.MathUtils.degToRad(MIN_POLAR_DEG)}
+            maxPolarAngle={THREE.MathUtils.degToRad(MAX_POLAR_DEG)}
             minDistance={5}
             maxDistance={80}
             onStart={() => {
