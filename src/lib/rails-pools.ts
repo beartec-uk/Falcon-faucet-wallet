@@ -5,9 +5,11 @@
 // reported in `gaps` and shown as such, never guessed.
 
 import { big, toFloat } from '@/lib/pl-exact-json'
+import { isLiveBitcoinAsset } from '@/lib/explorer-sot'
 
-export type RailAsset = 'USDC' | 'ETH' | 'BTC'
-export const RAIL_ASSETS: RailAsset[] = ['USDC', 'ETH', 'BTC']
+export type RailAsset = 'USDC' | 'ETH' | 'BTC' | 'BTC4'
+/** Rails the explorer presents. Live Bitcoin is BTC4 (STATUS SoT); legacy BTC is not listed. */
+export const RAIL_ASSETS: RailAsset[] = ['USDC', 'ETH', 'BTC4']
 export const ASSET_DECIMALS: Record<string, number> = { FPL: 0, USDC: 6, ETH: 18, BTC: 8, BTC4: 8 }
 export const ASSET_UNIT: Record<string, string> = { FPL: 'FPL', USDC: 'USDC', ETH: 'ETH', BTC: 'BTC', BTC4: 'BTC' }
 
@@ -119,8 +121,12 @@ export function buildRails(st: Obj, opts: RailOptions = {}): RailView[] {
   const wSlots = obj(st.watcher_slots)
   const wWork = obj(st.watcher_work)
   const qcBridge = s(st.eth_v3_bridge) || s(cfg.qc_v3)
-  return RAIL_ASSETS.map((asset) => {
-    const r = (asset === 'BTC' ? (rails.find((x) => s(x.asset) === 'BTC4') ?? rails.find((x) => s(x.asset) === 'BTC')) : rails.find((x) => s(x.asset) === asset)) ?? {}
+  // Only emit BTC4 when the node has that rail, so a Testnet3-only fixture does
+  // not grow an empty live rail. Never fall back to legacy BTC data.
+  const assets = RAIL_ASSETS.filter((asset) => asset !== 'BTC4' || rails.some((x) => s(x.asset) === 'BTC4'))
+  return assets.map((asset) => {
+    const r = rails.find((x) => s(x.asset) === asset) ?? {}
+    const bitcoin = isLiveBitcoinAsset(asset)
     const dec = ASSET_DECIMALS[asset]
     const minted = big(r.total_minted)
     const burned = big(r.total_burned)
@@ -137,14 +143,14 @@ export function buildRails(st: Obj, opts: RailOptions = {}): RailView[] {
       ext_block: null,
     }))
     // BTC peg-outs also appear as BitVM claims with a status; attach it to the withdrawal.
-    if (asset === 'BTC') {
+    if (bitcoin) {
       for (const c of [...arr(r.bitvm2_claims), ...arr(r.bitvm_claims)]) {
         const w = withdrawals.find((x) => x.id === `out:${s(c.note_id)}`)
         if (w && s(c.status)) w.status = s(c.status)
       }
     }
     const minted_in: Transfer[] =
-      asset === 'BTC'
+      bitcoin
         ? []
         : resolutions
             .filter((x) => s(x.asset) === asset && s(x.kind) === 'mint')
@@ -162,7 +168,7 @@ export function buildRails(st: Obj, opts: RailOptions = {}): RailView[] {
     const allIn = dedupe([...minted_in, ...history.filter((t) => t.kind === 'bridge_in')])
 
     const addresses: AddressRow[] = []
-    if (asset === 'BTC') {
+    if (bitcoin) {
       if (s(r.vault_address)) addresses.push({ label: 'BitVM2 Testnet4 vault', value: s(r.vault_address), href: `https://mempool.space/testnet4/address/${s(r.vault_address)}`, source: 'status.rails[BTC4].vault_address' })
       gaps.push('Per-depositor BTC peg-ins are not exposed (the rail lists spent deposit txids only), so the BTC leaderboard is empty.')
     } else {
@@ -176,7 +182,7 @@ export function buildRails(st: Obj, opts: RailOptions = {}): RailView[] {
     if (s(r.lock_id)) addresses.push({ label: 'Rail lock id', value: s(r.lock_id), source: `status.rails[${asset}].lock_id` })
 
     const relayer: { label: string; value: string }[] = []
-    if (asset === 'BTC') {
+    if (bitcoin) {
       relayer.push({ label: 'BTC headers held', value: `${n(r.header_count).toLocaleString('en-US')} (from #${n(r.header_floor).toLocaleString('en-US')})` })
       relayer.push({ label: 'Header tip', value: `#${n(r.tip_height).toLocaleString('en-US')}` })
     } else {
@@ -189,7 +195,7 @@ export function buildRails(st: Obj, opts: RailOptions = {}): RailView[] {
     gaps.push('Relayer heartbeat timestamps are not exposed; liveness is shown as header / light-client progress.')
 
     const fees: RailView['fees'] = []
-    if (asset === 'BTC' && opts.btcPolicy) {
+    if (bitcoin && opts.btcPolicy) {
       fees.push({ label: 'Peg-out kickoff fee', value: `${opts.btcPolicy.kickoffFeeSats.toLocaleString('en-US')} sats`, source: 'BitVM2 peg-out policy (wallet)' })
       fees.push({ label: 'Minimum peg-out', value: `${opts.btcPolicy.minPegoutSats.toLocaleString('en-US')} sats`, source: 'BitVM2 peg-out policy (wallet)' })
       fees.push({ label: 'Exit CSV', value: `${opts.btcPolicy.csvBlocks} blocks`, source: 'BitVM2 peg-out policy (wallet)' })
@@ -202,7 +208,7 @@ export function buildRails(st: Obj, opts: RailOptions = {}): RailView[] {
       minted: minted.toString(),
       burned: burned.toString(),
       outstanding: (minted - burned).toString(),
-      vault: asset === 'BTC' ? { sats: n(r.vault_sats) || Number(minted - burned), utxos: n(r.vault_utxos) || (Array.isArray(r.spent_deposits) ? r.spent_deposits.length : 0) } : null,
+      vault: bitcoin ? { sats: n(r.vault_sats) || Number(minted - burned), utxos: n(r.vault_utxos) || (Array.isArray(r.spent_deposits) ? r.spent_deposits.length : 0) } : null,
       deposits: { processed: arr(r.spent_deposits).length || (Array.isArray(r.spent_deposits) ? r.spent_deposits.length : 0), recent: allIn.slice(-20).reverse() },
       withdrawals: { open: n(r.open_withdrawals), list: withdrawals },
       headers: { kind: s(r.spv) === 'bitcoin' ? 'bitcoin' : 'protocol', tip_height: n(r.tip_height), tip_hash: s(r.tip_hash), count: n(r.header_count), floor: n(r.header_floor) },

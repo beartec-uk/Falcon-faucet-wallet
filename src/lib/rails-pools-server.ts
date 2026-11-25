@@ -18,6 +18,7 @@ import {
 import { pgFaucetSource } from '@/lib/faucet-activity'
 import { classify, statusContext } from '@/lib/tracker'
 import { buildPools, buildRails, lpCandidates, type PoolView, type RailView } from '@/lib/rails-pools'
+import { visibleExplorerPools, visibleExplorerRails } from '@/lib/explorer-sot'
 
 type Obj = Record<string, unknown>
 const BTC_CSV_BLOCKS = 6
@@ -69,12 +70,12 @@ export async function getRailsPools(opts: { store?: ActivityStore; now?: number;
   const st = opts.status ?? (await statusExact())
   const [events, samples] = await Promise.all([store.events(), store.poolSamples(now - 24 * 3600_000)])
   const snaps = opts.snaps ?? (await snapshots(lpCandidates(st).slice(0, 25)))
-  const rails = buildRails(st, {
+  const rails = visibleExplorerRails(buildRails(st, {
     config: bridgeConfig,
     btcPolicy: { kickoffFeeSats: BITVM2_KICKOFF_FEE_SATS, minPegoutSats: BITVM2_MIN_PEGOUT_SATS, csvBlocks: BTC_CSV_BLOCKS },
     history: events,
-  })
-  const pools = buildPools(st, snaps.flatMap((x) => x.lp), samples, now)
+  }))
+  const pools = visibleExplorerPools(buildPools(st, snaps.flatMap((x) => x.lp), samples, now))
   const data: RailsPoolsPayload = {
     generated_at: now,
     height: Number(st.tip_height) || 0,
