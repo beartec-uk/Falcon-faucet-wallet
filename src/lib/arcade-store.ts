@@ -8,6 +8,12 @@
  */
 
 import { getSql, isDbConfigured } from '@/lib/db'
+import { TRACKER_CONFIG } from '@/config/tracker'
+import {
+  aggregateArcadeHistory,
+  type AggregatedArcadeHistory,
+  type ArcadeHistoryRow,
+} from '@/lib/arcade-airdrop'
 
 export const GAME_SLUGS = [
   'falcon-flight',
@@ -147,6 +153,7 @@ type ClaimKey = string // network|address|game|day
 const memScores = new Map<string, number>()
 const memClaims = new Map<string, number>() // count
 const memProgress = new Map<string, RunProgressState>()
+const memPlAccounts = new Map<string, string>()
 
 function scoreKey(
   network: string,
@@ -299,6 +306,7 @@ export async function upsertArcadeScore(opts: {
   const prev = memScores.get(k) ?? 0
   const best = Math.max(prev, score)
   memScores.set(k, best)
+  if (opts.plAccount) memPlAccounts.set(k, opts.plAccount.trim())
   const st = applyRunScore(memProgress.get(k) ?? EMPTY_RUN_STATE, score, runId)
   memProgress.set(k, st)
   return { best, improved: best > prev, progress: st.progress, runs: st.runs }
@@ -840,4 +848,114 @@ export async function arcadeDaysByPlAccount(network: string, sinceDay: string): 
     console.error('[arcade-store] tracker days', e)
     return []
   }
+}
+
+/**
+ * Shared All-Time + Overall Airdrop leaderboard reader.
+ * Reads from the exact same arcade_scores (+ finalized arcade_claims) source and
+ * shared aggregation (aggregateArcadeHistory / computeArcadeAirdropPoints) used by
+ * the testnet activity airdrop tracker and Game Faucet claims.
+ */
+export async function getAllTimeLeaderboard(opts: {
+  network: string
+  limit?: number
+  now?: number
+}): Promise<AggregatedArcadeHistory> {
+  const now = opts.now ?? Date.now()
+  const todayUtc = arcadeUtcDay(new Date(now))
+  const airdropWindowSince = new Date(
+    now - TRACKER_CONFIG.windowDays * 86_400_000,
+  )
+    .toISOString()
+    .slice(0, 10)
+  const limit = Math.min(100, Math.max(1, opts.limit ?? 25))
+
+  if (isDbConfigured()) {
+    try {
+      await ensureTables()
+      const sql = getSql()
+      const rows = (await sql`
+        WITH claim_counts AS (
+          SELECT network, address, game, day_utc,
+                 COUNT(*) FILTER (WHERE tx_hash NOT LIKE 'reserved:%')::int AS finalized_claims
+          FROM arcade_claims
+          WHERE network = ${opts.network}
+          GROUP BY network, address, game, day_utc
+        )
+        SELECT
+          s.network,
+          s.address,
+          s.pl_account,
+          s.game,
+          s.day_utc::text AS day_utc,
+          s.score,
+          s.progress,
+          s.runs,
+          COALESCE(c.finalized_claims, 0)::int AS finalized_claims
+        FROM arcade_scores s
+        LEFT JOIN claim_counts c
+          ON c.network = s.network
+         AND c.address = s.address
+         AND c.game = s.game
+         AND c.day_utc = s.day_utc
+        WHERE s.network = ${opts.network}
+      `) as Record<string, unknown>[]
+
+      const mapped: ArcadeHistoryRow[] = rows.map((r) => ({
+        network: String(r.network),
+        address: String(r.address),
+        plAccount: r.pl_account == null ? null : String(r.pl_account),
+        game: String(r.game),
+        dayUtc: String(r.day_utc),
+        score: Number(r.score ?? 0),
+        progress: Number(r.progress ?? 0),
+        runs: Number(r.runs ?? 0),
+        finalizedClaims: Number(r.finalized_claims ?? 0),
+      }))
+
+      return aggregateArcadeHistory(mapped, {
+        gameSlugs: GAME_SLUGS,
+        minScore: GAME_FAUCET_MIN_SCORE,
+        airdropWindowSince,
+        todayUtc,
+        limit,
+      })
+    } catch (e) {
+      console.warn('[arcade-store] all-time leaderboard db failed:', e)
+    }
+  }
+
+  // Memory fallback (used in tests and local non-DB runs)
+  const prefix = `${opts.network}|`
+  const keys = new Set<string>([
+    ...memScores.keys(),
+    ...memProgress.keys(),
+    ...memClaims.keys(),
+  ])
+  const memRows: ArcadeHistoryRow[] = []
+  for (const k of keys) {
+    if (!k.startsWith(prefix)) continue
+    const [, address, game, dayUtc] = k.split('|')
+    if (!address || !game || !dayUtc) continue
+    const st = memProgress.get(k)
+    memRows.push({
+      network: opts.network,
+      address,
+      plAccount: memPlAccounts.get(k) ?? null,
+      game,
+      dayUtc,
+      score: memScores.get(k) ?? 0,
+      progress: st?.progress ?? 0,
+      runs: st?.runs ?? 0,
+      finalizedClaims: memClaims.get(k) ?? 0,
+    })
+  }
+
+  return aggregateArcadeHistory(memRows, {
+    gameSlugs: GAME_SLUGS,
+    minScore: GAME_FAUCET_MIN_SCORE,
+    airdropWindowSince,
+    todayUtc,
+    limit,
+  })
 }

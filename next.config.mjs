@@ -44,6 +44,16 @@ const nextConfig = {
     return config
   },
 
+  async redirects() {
+    return [
+      {
+        source: '/arcade/leaderboard',
+        destination: '/arcade#leaderboard',
+        permanent: true,
+      },
+    ]
+  },
+
   async rewrites() {
     // Public explorer API v1: /v1/* is served by src/app/api/v1/* (gateway-friendly prefix).
     return [{ source: '/v1/:path*', destination: '/api/v1/:path*' }]

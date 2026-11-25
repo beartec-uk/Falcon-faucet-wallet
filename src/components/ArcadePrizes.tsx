@@ -14,7 +14,7 @@ export default function ArcadePrizes() {
       <div>
         <h2 className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: C.gold }}>Arcade top 5</h2>
         <p className="text-sm text-slate-300 mt-1">
-          A secondary prize for the top five <Link href="/arcade/leaderboard" className="hover:underline" style={{ color: C.gold }}>Arcade</Link> players,
+          A secondary prize for the top five <Link href="/arcade#leaderboard" className="hover:underline" style={{ color: C.gold }}>Arcade</Link> players,
           that we intend to reward at mainnet launch from the builder pot, separate from the community airdrop and the First 35.
         </p>
       </div>
