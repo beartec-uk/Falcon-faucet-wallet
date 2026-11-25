@@ -2,6 +2,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import type { NetworkTopology } from '@/lib/netmap-topology'
 import type { ScanData } from '@/lib/scan-types'
 import { useLiveSamples, type LiveSamples } from '@/hooks/useLiveSamples'
 
@@ -33,12 +34,17 @@ export interface NetworkFeed {
   lastPollMs: number | null
 }
 
+export interface TopologyFeed {
+  topology: NetworkTopology | null
+  error: string | null
+}
+
 const KEEP_BLOCKS = 40
 
 /**
- * Poll /api/scan every `pollMs` (next poll starts `pollMs` after the previous one
- * started, never overlapping). Every animation the map shows is triggered by a
- * change seen here; nothing is interpolated or invented between polls.
+ * Poll /api/scan every `pollMs` (pausing while document.hidden to save mobile
+ * battery/CPU). Every animation the map shows is triggered by a real change
+ * seen here; nothing is invented between polls.
  */
 export function useNetworkFeed(pollMs: number): NetworkFeed {
   const [data, setData] = useState<ScanData | null>(null)
@@ -51,7 +57,19 @@ export function useNetworkFeed(pollMs: number): NetworkFeed {
   useEffect(() => {
     let alive = true
     let timer: ReturnType<typeof setTimeout> | null = null
+    let inFlight = false
+
+    const schedule = (delayMs: number) => {
+      if (!alive) return
+      if (timer) clearTimeout(timer)
+      if (typeof document !== 'undefined' && document.hidden) return
+      timer = setTimeout(run, delayMs)
+    }
+
     const run = async () => {
+      if (!alive || inFlight) return
+      if (typeof document !== 'undefined' && document.hidden) return
+      inFlight = true
       const started = Date.now()
       try {
         const r = await fetch('/api/scan', { cache: 'no-store', signal: AbortSignal.timeout(8000) })
@@ -85,16 +103,84 @@ export function useNetworkFeed(pollMs: number): NetworkFeed {
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : String(e))
       } finally {
-        if (alive) timer = setTimeout(run, Math.max(250, pollMs - (Date.now() - started)))
+        inFlight = false
+        if (alive) schedule(Math.max(250, pollMs - (Date.now() - started)))
       }
     }
+
+    const onVisibility = () => {
+      if (!document.hidden && alive) {
+        if (timer) clearTimeout(timer)
+        void run()
+      }
+    }
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
     void run()
     return () => {
       alive = false
       if (timer) clearTimeout(timer)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [pollMs])
 
   const live = useLiveSamples(data)
   return { data, error, live, blocks, event, lastPollMs }
+}
+
+/**
+ * Poll /api/scan/topology for live hub/archive roles and peer-to-peer links,
+ * pausing automatically when the tab is hidden.
+ */
+export function useNetworkTopology(pollMs: number): TopologyFeed {
+  const [topology, setTopology] = useState<NetworkTopology | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let inFlight = false
+
+    const schedule = (delayMs: number) => {
+      if (!alive) return
+      if (timer) clearTimeout(timer)
+      if (typeof document !== 'undefined' && document.hidden) return
+      timer = setTimeout(run, delayMs)
+    }
+
+    const run = async () => {
+      if (!alive || inFlight) return
+      if (typeof document !== 'undefined' && document.hidden) return
+      inFlight = true
+      const started = Date.now()
+      try {
+        const r = await fetch('/api/scan/topology', { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
+        const d = (await r.json()) as NetworkTopology & { error?: string }
+        if (!r.ok || d.error) throw new Error(d.error ?? `HTTP ${r.status}`)
+        if (!alive) return
+        setTopology(d)
+        setError(null)
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : String(e))
+      } finally {
+        inFlight = false
+        if (alive) schedule(Math.max(1000, pollMs - (Date.now() - started)))
+      }
+    }
+
+    const onVisibility = () => {
+      if (!document.hidden && alive) {
+        if (timer) clearTimeout(timer)
+        void run()
+      }
+    }
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
+    void run()
+    return () => {
+      alive = false
+      if (timer) clearTimeout(timer)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [pollMs])
+
+  return { topology, error }
 }
