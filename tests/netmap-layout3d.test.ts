@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   chooseRenderer,
+  DEFAULT_LAYOUT_RADIUS,
+  enforceMinSeparation,
   linkControlPoint,
   quadBezier3,
   solveForceMesh3D,
+  visualClearance,
   type Vec3,
 } from '@/lib/netmap-layout3d'
 
@@ -31,6 +34,9 @@ const pairs: Array<[string, string]> = [
 ]
 const edges = pairs.map(([source, target]) => ({ source, target, kind: 'peer' as const }))
 const dist = (a: Vec3, b: Vec3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+const gap = 0.6
+const minWanted = (a: (typeof nodes)[number], b: (typeof nodes)[number]) =>
+  visualClearance(a) + visualClearance(b) + gap
 
 describe('solveForceMesh3D', () => {
   it('is deterministic and places every node', () => {
@@ -40,18 +46,33 @@ describe('solveForceMesh3D', () => {
     for (const id of ids) expect(a.get(id)).toEqual(b.get(id))
   })
 
-  it('lays every node on the y=0 plane, centred and scaled to the target radius', () => {
-    const pos = solveForceMesh3D(nodes, edges, { targetRadius: 7 })
+  it('lays every node on the y=0 plane, centred, and at least as wide as the target radius', () => {
+    const pos = solveForceMesh3D(nodes, edges, { targetRadius: DEFAULT_LAYOUT_RADIUS })
     const pts = [...pos.values()]
     for (const p of pts) expect(Math.abs(p[1])).toBeLessThan(1e-9)
     const c = [0, 1, 2].map((k) => pts.reduce((s, p) => s + p[k], 0) / pts.length)
     for (const v of c) expect(Math.abs(v)).toBeLessThan(1e-6)
     const maxR = Math.max(...pts.map((p) => Math.hypot(p[0], p[2])))
-    expect(maxR).toBeCloseTo(7, 5)
+    expect(maxR).toBeGreaterThanOrEqual(DEFAULT_LAYOUT_RADIUS - 1e-6)
     const xSpread = Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]))
     const zSpread = Math.max(...pts.map((p) => p[2])) - Math.min(...pts.map((p) => p[2]))
-    expect(xSpread).toBeGreaterThan(1.5)
-    expect(zSpread).toBeGreaterThan(1.5)
+    expect(xSpread).toBeGreaterThan(8)
+    expect(zSpread).toBeGreaterThan(8)
+  })
+
+  it('keeps every pair at least visualClearance + gap apart so objects and labels do not overlap', () => {
+    const pos = solveForceMesh3D(nodes, edges)
+    const byId = new Map(nodes.map((n) => [n.id, n]))
+    let minSlack = Infinity
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const want = minWanted(byId.get(ids[i])!, byId.get(ids[j])!)
+        const d = dist(pos.get(ids[i])!, pos.get(ids[j])!)
+        minSlack = Math.min(minSlack, d - want)
+        expect(d).toBeGreaterThanOrEqual(want - 1e-6)
+      }
+    }
+    expect(minSlack).toBeGreaterThanOrEqual(-1e-6)
   })
 
   it('keeps nodes apart and peers closer than non-peers on average', () => {
@@ -65,7 +86,7 @@ describe('solveForceMesh3D', () => {
         if (peerKey.has([ids[i], ids[j]].sort().join('|'))) { peerSum += d; peerN++ } else { otherSum += d; otherN++ }
       }
     }
-    expect(minD).toBeGreaterThan(0.8)
+    expect(minD).toBeGreaterThan(2)
     expect(peerSum / peerN).toBeLessThan(otherSum / otherN)
   })
 
@@ -84,8 +105,25 @@ describe('solveForceMesh3D', () => {
     const again = solveForceMesh3D(nodes, edges, { prev: first, iterations: 20 })
     for (const id of ids) {
       expect(Math.abs(again.get(id)![1])).toBeLessThan(1e-9)
-      expect(dist(first.get(id)!, again.get(id)!)).toBeLessThan(2)
+      expect(dist(first.get(id)!, again.get(id)!)).toBeLessThan(3)
     }
+  })
+})
+
+describe('enforceMinSeparation', () => {
+  it('pushes two overlapping hubs apart to at least their clearances plus the gap', () => {
+    const a = { id: 'v1', isHub: true, kind: 'hub' as const, locationId: 'e', locationLabel: 'E' }
+    const b = { id: 'v3', isHub: true, kind: 'hub' as const, locationId: 'e', locationLabel: 'E' }
+    const out = enforceMinSeparation(
+      new Map([['v1', [0, 0, 0]], ['v3', [0.4, 0, 0]]]),
+      [a, b],
+      0.6,
+    )
+    expect(dist(out.get('v1')!, out.get('v3')!)).toBeGreaterThanOrEqual(
+      visualClearance(a) + visualClearance(b) + 0.6 - 1e-6,
+    )
+    expect(out.get('v1')![1]).toBe(0)
+    expect(out.get('v3')![1]).toBe(0)
   })
 })
 

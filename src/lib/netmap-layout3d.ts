@@ -3,7 +3,7 @@
 // for /scan/map. No three.js imports, so it stays testable and out of the
 // initial bundle.
 
-import { solveForceMesh, stepForceMesh, type MeshEdge, type MeshNode } from '@/lib/netmap-layout'
+import { solveForceMesh, stepForceMesh, type ForceOpts, type MeshEdge, type MeshNode } from '@/lib/netmap-layout'
 
 export type Vec3 = [number, number, number]
 
@@ -18,14 +18,31 @@ export interface Force3DOpts {
   springK?: number
   centerGravity?: number
   geoCohesion?: number
-  /** Final bounding radius the layout is scaled to. */
+  /** Final bounding radius the layout is scaled to, before min-separation. */
   targetRadius?: number
+  /** Extra world-space gap added on top of each node's visual clearance. */
+  gap?: number
   /** Previous positions, reused as the starting point so updates move gently. */
   prev?: Map<string, Vec3>
 }
 
+/** Default plane radius for the 3D view (world units). Larger than the old
+ *  packed radius of 7 so 3D objects and labels have room to breathe. */
+export const DEFAULT_LAYOUT_RADIUS = 12
+
 /** Typical radius of `solveForceMesh` before we scale into world units. */
 const LAYOUT_2D_UNIT = 200
+
+/** Looser 2D-solver constants used only for the 3D plane (the Canvas 2D
+ *  fallback keeps the library defaults). */
+const PLANAR_FORCE: ForceOpts = {
+  restLength: 240,
+  repulsion: 42_000,
+  springK: 0.028,
+  centerGravity: 0.01,
+  geoCohesion: 0.006,
+  minSep: 130,
+}
 
 function stubNode(n: LayoutNode): MeshNode {
   return {
@@ -65,69 +82,141 @@ function stubEdge(e: LayoutEdge): MeshEdge {
 }
 
 /**
+ * World-space clearance around a node: 3D object radius plus room for the
+ * HTML label so two neighbours never sit on top of each other.
+ */
+export function visualClearance(n: Pick<LayoutNode, 'kind' | 'isHub'>): number {
+  if (n.kind === 'wallet') return 1.4
+  if (n.isHub) return 1.75
+  if (n.kind === 'observer') return 0.9
+  return 1.3
+}
+
+/**
+ * Push overlapping nodes apart on the y=0 plane until every pair is at least
+ * `visualClearance(a) + visualClearance(b) + gap` apart, then re-centre.
+ * May grow the bounding radius past `targetRadius`.
+ */
+export function enforceMinSeparation(
+  pos: Map<string, Vec3>,
+  nodes: LayoutNode[],
+  gap = 0.6,
+  iterations = 100,
+): Map<string, Vec3> {
+  const ids = nodes.map((n) => n.id).filter((id) => pos.has(id))
+  const n = ids.length
+  if (n === 0) return new Map(pos)
+  const rad = new Map(nodes.map((node) => [node.id, visualClearance(node)]))
+  const x = new Float64Array(n)
+  const z = new Float64Array(n)
+  ids.forEach((id, i) => {
+    const p = pos.get(id)!
+    x[i] = p[0]
+    z[i] = p[2]
+  })
+
+  for (let it = 0; it < iterations; it++) {
+    let moved = 0
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        let dx = x[j] - x[i]
+        let dz = z[j] - z[i]
+        let d = Math.hypot(dx, dz)
+        const want = (rad.get(ids[i]) ?? 1) + (rad.get(ids[j]) ?? 1) + gap
+        if (d < 1e-6) {
+          const ang = (i * 1.7 + j * 2.3) % (Math.PI * 2)
+          dx = Math.cos(ang)
+          dz = Math.sin(ang)
+          d = 1e-6
+        }
+        if (d >= want) continue
+        const push = (want - d) * 0.5
+        const ux = dx / d
+        const uz = dz / d
+        x[i] -= ux * push
+        z[i] -= uz * push
+        x[j] += ux * push
+        z[j] += uz * push
+        moved++
+      }
+    }
+    if (!moved) break
+  }
+
+  let cx = 0
+  let cz = 0
+  for (let i = 0; i < n; i++) {
+    cx += x[i]
+    cz += z[i]
+  }
+  cx /= n
+  cz /= n
+  const out = new Map(pos)
+  ids.forEach((id, i) => out.set(id, [x[i] - cx, 0, z[i] - cz]))
+  return out
+}
+
+/**
  * Deterministic force-directed layout on a single plane (y = 0).
- * Uses the same 2D solver as the Canvas mesh (`solveForceMesh`), then maps
- * (x, y) → (x, 0, z). Every node, hub or not, is a free equal peer: nothing
- * is pinned, there is no root, and the result is re-centred so no seat sits
- * "on top".
+ * Uses the same 2D solver as the Canvas mesh (`solveForceMesh`) with looser
+ * spacing, then maps (x, y) → (x, 0, z) and enforces a minimum world-space
+ * gap so 3D objects and labels do not overlap. Every node, hub or not, is a
+ * free equal peer: nothing is pinned, there is no root, and the result is
+ * re-centred so no seat sits "on top".
  */
 export function solveForceMesh3D(
   nodes: LayoutNode[],
   edges: LayoutEdge[],
   opts: Force3DOpts = {},
 ): Map<string, Vec3> {
-  const targetRadius = opts.targetRadius ?? 7
+  const targetRadius = opts.targetRadius ?? DEFAULT_LAYOUT_RADIUS
   const prev = opts.prev
   // Canonical order so the result never depends on input order (e.g. which hub is listed first).
   nodes = [...nodes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 
   const n = nodes.length
-  const out = new Map<string, Vec3>()
-  if (n === 0) return out
-  if (n === 1) {
-    out.set(nodes[0].id, [0, 0, 0])
-    return out
-  }
+  if (n === 0) return new Map()
+  if (n === 1) return new Map([[nodes[0].id, [0, 0, 0]]])
 
   const meshNodes = nodes.map(stubNode)
   const meshEdges = edges.map(stubEdge)
-  const hasPrev = Boolean(prev && meshNodes.some((n) => prev!.has(n.id)))
+  const hasPrev = Boolean(prev && meshNodes.some((node) => prev!.has(node.id)))
 
   if (hasPrev && prev) {
     const scaleUp = LAYOUT_2D_UNIT / targetRadius
-    const placed = meshNodes.filter((n) => prev.has(n.id))
-    const missing = meshNodes.filter((n) => !prev.has(n.id))
-    for (const n of placed) {
-      const p = prev.get(n.id)!
-      n.x = p[0] * scaleUp
-      n.y = p[2] * scaleUp
-      n.vx = 0
-      n.vy = 0
+    const placed = meshNodes.filter((node) => prev.has(node.id))
+    const missing = meshNodes.filter((node) => !prev.has(node.id))
+    for (const node of placed) {
+      const p = prev.get(node.id)!
+      node.x = p[0] * scaleUp
+      node.y = p[2] * scaleUp
+      node.vx = 0
+      node.vy = 0
     }
     if (missing.length > 0) {
-      const cx = placed.reduce((s, n) => s + n.x, 0) / Math.max(1, placed.length)
-      const cy = placed.reduce((s, n) => s + n.y, 0) / Math.max(1, placed.length)
-      const ring = LAYOUT_2D_UNIT * 0.6
-      missing.forEach((n, i) => {
+      const cx = placed.reduce((s, node) => s + node.x, 0) / Math.max(1, placed.length)
+      const cy = placed.reduce((s, node) => s + node.y, 0) / Math.max(1, placed.length)
+      const ring = LAYOUT_2D_UNIT * 0.7
+      missing.forEach((node, i) => {
         const th = (i / missing.length) * Math.PI * 2
-        n.x = cx + Math.cos(th) * ring
-        n.y = cy + Math.sin(th) * ring
-        n.vx = 0
-        n.vy = 0
+        node.x = cx + Math.cos(th) * ring
+        node.y = cy + Math.sin(th) * ring
+        node.vx = 0
+        node.vy = 0
       })
     }
     const steps = opts.iterations ?? 120
-    for (let i = 0; i < steps; i++) stepForceMesh(meshNodes, meshEdges)
+    for (let i = 0; i < steps; i++) stepForceMesh(meshNodes, meshEdges, PLANAR_FORCE)
   } else {
-    solveForceMesh(meshNodes, meshEdges, opts.iterations ?? 180)
+    solveForceMesh(meshNodes, meshEdges, opts.iterations ?? 180, PLANAR_FORCE)
   }
 
   // Re-centre on the 2D centroid, scale into world units, flatten to y = 0.
   let cx = 0
   let cz = 0
-  for (const n of meshNodes) {
-    cx += n.x
-    cz += n.y
+  for (const node of meshNodes) {
+    cx += node.x
+    cz += node.y
   }
   cx /= n
   cz /= n
@@ -136,10 +225,11 @@ export function solveForceMesh3D(
     maxR = Math.max(maxR, Math.hypot(node.x - cx, node.y - cz))
   }
   const s = maxR > 1e-6 ? targetRadius / maxR : 1
+  const scaled = new Map<string, Vec3>()
   for (const node of meshNodes) {
-    out.set(node.id, [(node.x - cx) * s, 0, (node.y - cz) * s])
+    scaled.set(node.id, [(node.x - cx) * s, 0, (node.y - cz) * s])
   }
-  return out
+  return enforceMinSeparation(scaled, nodes, opts.gap ?? 0.6)
 }
 
 /**

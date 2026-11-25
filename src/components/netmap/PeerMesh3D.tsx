@@ -19,7 +19,7 @@ import type { PeerMeshProps } from '@/components/netmap/PeerMeshCanvas'
 import type { Round } from '@/lib/netmap-consensus'
 import { phaseAt } from '@/lib/netmap-consensus'
 import { bulgeCount, propagationPlan, ringFill, votePaths, type MeshEdge, type MeshNode } from '@/lib/netmap-layout'
-import { linkControlPoint, quadBezier3, solveForceMesh3D, type Vec3 } from '@/lib/netmap-layout3d'
+import { DEFAULT_LAYOUT_RADIUS, linkControlPoint, quadBezier3, solveForceMesh3D, type Vec3 } from '@/lib/netmap-layout3d'
 import { BRIDGE_OPERATORS } from '@/lib/bridge-operators'
 
 const Effects = lazy(() => import('@/components/netmap/PeerMesh3DEffects'))
@@ -46,7 +46,7 @@ const C = {
 }
 
 const HOP_MS = 280
-const R_LAYOUT = 7
+const R_LAYOUT = DEFAULT_LAYOUT_RADIUS
 /** Default camera elevation above the plane (degrees). Polar = 90 − this. */
 const CAMERA_ELEVATION_DEG = 42
 const CAMERA_AZIMUTH_DEG = 28
@@ -539,7 +539,7 @@ function Pulses({
   )
 }
 
-function Ground() {
+function Ground({ radius }: { radius: number }) {
   const glow = useMemo(() => {
     const c = document.createElement('canvas')
     c.width = 512
@@ -561,11 +561,11 @@ function Ground() {
     <group>
       {glow && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} raycast={() => null}>
-          <planeGeometry args={[36, 36]} />
+          <planeGeometry args={[Math.max(40, radius * 3.2), Math.max(40, radius * 3.2)]} />
           <meshBasicMaterial map={glow} transparent opacity={1} depthWrite={false} />
         </mesh>
       )}
-      <gridHelper args={[22, 22, '#2A3A55', '#152033']} position={[0, -0.07, 0]} />
+      <gridHelper args={[Math.max(28, Math.ceil(radius * 2.6)), 24, '#2A3A55', '#152033']} position={[0, -0.07, 0]} />
     </group>
   )
 }
@@ -621,17 +621,19 @@ function CameraRig({
   controls,
   isMobile,
   fitKey,
+  radius,
 }: {
   controls: React.MutableRefObject<ControlsRef | null>
   isMobile: boolean
   fitKey: number
+  radius: number
 }) {
   const { camera, size, invalidate } = useThree()
   useEffect(() => {
     const cam = camera as THREE.PerspectiveCamera
     const aspect = size.width / Math.max(1, size.height)
     const half = THREE.MathUtils.degToRad(cam.fov / 2)
-    const fitR = R_LAYOUT + (isMobile ? 1.1 : 1.8)
+    const fitR = Math.max(R_LAYOUT, radius) + (isMobile ? 1.4 : 2.2)
     const elevation = THREE.MathUtils.degToRad(CAMERA_ELEVATION_DEG)
     const polar = Math.PI / 2 - elevation
     const azimuth = THREE.MathUtils.degToRad(CAMERA_AZIMUTH_DEG)
@@ -646,7 +648,7 @@ function CameraRig({
       Math.sin(polar) * Math.cos(azimuth) * dist,
     )
     cam.near = 0.1
-    cam.far = 200
+    cam.far = 300
     cam.updateProjectionMatrix()
     const c = controls.current
     if (c) {
@@ -656,7 +658,7 @@ function CameraRig({
       c.update()
     }
     invalidate()
-  }, [camera, size.width, size.height, isMobile, fitKey, controls, invalidate])
+  }, [camera, size.width, size.height, isMobile, fitKey, radius, controls, invalidate])
   return null
 }
 
@@ -707,6 +709,12 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
   }, [graph])
   useEffect(() => {
     prevPos.current = pos
+  }, [pos])
+
+  const layoutRadius = useMemo(() => {
+    let m = 0
+    for (const p of pos.values()) m = Math.max(m, Math.hypot(p[0], p[2]))
+    return Math.max(R_LAYOUT, m)
   }, [pos])
 
   const byId = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n])), [graph])
@@ -860,14 +868,14 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
           onPointerMissed={() => setHovered(null)}
         >
           <color attach="background" args={[C.bg]} />
-          <fog attach="fog" args={[C.bg, 22, 55]} />
+          <fog attach="fog" args={[C.bg, 28, 90]} />
           <ambientLight intensity={0.25} />
           <hemisphereLight args={['#94A3B8', '#020617', 0.35]} />
           <directionalLight position={[8, 12, 10]} intensity={1.1} color="#FFE2B8" />
           <pointLight position={[-12, -6, -8]} intensity={40} distance={60} color={C.cyan} />
           <StudioEnv />
           <Stars count={isMobile ? 260 : 700} />
-          <Ground />
+          <Ground radius={layoutRadius} />
           <GeoHalos halos={halos} />
           <Links curves={curves} activeId={activeId} />
           <Pulses curves={curves} anim={anim} pairIndex={pairIndex} max={isMobile ? 80 : 180} />
@@ -901,8 +909,8 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
             autoRotateSpeed={0.4}
             minPolarAngle={THREE.MathUtils.degToRad(MIN_POLAR_DEG)}
             maxPolarAngle={THREE.MathUtils.degToRad(MAX_POLAR_DEG)}
-            minDistance={5}
-            maxDistance={80}
+            minDistance={6}
+            maxDistance={140}
             onStart={() => {
               setInteracting(true)
               if (idleTimer.current) clearTimeout(idleTimer.current)
@@ -912,7 +920,7 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
               idleTimer.current = setTimeout(() => setInteracting(false), 9000)
             }}
           />
-          <CameraRig controls={controls} isMobile={isMobile} fitKey={fitKey} />
+          <CameraRig controls={controls} isMobile={isMobile} fitKey={fitKey} radius={layoutRadius} />
           {!isMobile && (
             <Suspense fallback={null}>
               <Effects />
