@@ -98,7 +98,7 @@ export function solveForceMesh3D(
     const b = idx.get(e.target)
     if (a == null || b == null || a === b) continue
     const sameGeo = nodes[a].locationLabel && nodes[a].locationId === nodes[b].locationId
-    const len = e.kind === 'ingress' ? rest * 1.25 : sameGeo ? rest * 0.8 : rest
+    const len = e.kind === 'ingress' ? rest * 0.85 : sameGeo ? rest * 0.8 : rest
     springs.push([a, b, len])
   }
 

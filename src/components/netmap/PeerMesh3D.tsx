@@ -239,8 +239,8 @@ function NodeObject({
         ? node.host
         : `${walletCount.toLocaleString('en-US')} wallets`
       : node.isHub
-        ? ['HUB', node.host, geo].filter(Boolean).join(' · ')
-        : [node.host, geo].filter(Boolean).join(' · ')
+        ? ['HUB', geo].filter(Boolean).join(' · ')
+        : geo
 
   return (
     <group ref={group} position={pos} {...handlers}>
@@ -594,7 +594,7 @@ function CameraRig({
     const aspect = size.width / Math.max(1, size.height)
     const half = THREE.MathUtils.degToRad(cam.fov / 2)
     const fitR = R_LAYOUT + 1.6
-    const dist = fitR / (Math.tan(half) * Math.min(1, aspect)) * (isMobile ? 0.78 : 0.9)
+    const dist = fitR / (Math.tan(half) * Math.min(1, aspect)) * 0.92
     const dir = new THREE.Vector3(0.18, 0.32, 1).normalize()
     cam.position.copy(dir.multiplyScalar(dist))
     cam.near = 0.1
