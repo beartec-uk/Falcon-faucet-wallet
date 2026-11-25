@@ -15,7 +15,6 @@ const ROUTES: [string, number][] = [
   ['/first-35', 0.7],
   ['/validator/apply', 0.6],
   ['/arcade', 0.6],
-  ['/arcade/leaderboard', 0.5],
   ['/swap', 0.6],
   ['/pool', 0.6],
   ['/lend', 0.6],

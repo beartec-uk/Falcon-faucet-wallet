@@ -1,8 +1,13 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
-// GET /api/arcade/leaderboard?network=testnet&game=falcon-flight&limit=25
+// GET /api/arcade/leaderboard?network=testnet&period=daily|all&game=overall|falcon-flight&limit=25
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getLeaderboard, isGameSlug } from '@/lib/arcade-store'
+import { ARCADE_HISTORY_DATES } from '@/lib/arcade-airdrop'
+import {
+  getAllTimeLeaderboard,
+  getLeaderboard,
+  isGameSlug,
+} from '@/lib/arcade-store'
 import { resolveNetworkKey } from '@/lib/network-server'
 
 export const runtime = 'nodejs'
@@ -45,7 +50,7 @@ function corsHeaders(req: NextRequest): HeadersInit {
     allow = origin
   } else if (
     origin &&
-    /^https:\/\/falconledger[\w-]*\.vercel\.app$/.test(origin)
+    /^https:\/\/(?:falconledger|falcon-arcade)[\w-]*\.vercel\.app$/.test(origin)
   ) {
     allow = origin
   }
@@ -64,21 +69,47 @@ export async function OPTIONS(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const networkKey = resolveNetworkKey(sp.get('network'))
+  const period = sp.get('period')?.trim().toLowerCase() === 'all' ? 'all' : 'daily'
   const gameRaw = sp.get('game')?.trim()
   const game = gameRaw && isGameSlug(gameRaw) ? gameRaw : undefined
-  const limit = parseInt(sp.get('limit') ?? '25', 10)
+  const limitRaw = parseInt(sp.get('limit') ?? '25', 10)
+  const limit = Number.isFinite(limitRaw) ? limitRaw : 25
+  const dayUtc = new Date().toISOString().slice(0, 10)
+
+  if (period === 'all') {
+    const allTime = await getAllTimeLeaderboard({
+      network: networkKey,
+      limit,
+    })
+    return NextResponse.json(
+      {
+        network: networkKey,
+        period: 'all',
+        game: game ?? 'overall',
+        dayUtc,
+        historyDates: ARCADE_HISTORY_DATES,
+        airdropSummary: allTime.airdropSummary,
+        overallEntries: allTime.overallEntries,
+        byGame: allTime.byGame,
+        entries: game ? (allTime.byGame[game] ?? []) : allTime.overallEntries,
+      },
+      { headers: corsHeaders(req) },
+    )
+  }
 
   const entries = await getLeaderboard({
     network: networkKey,
     game,
-    limit: Number.isFinite(limit) ? limit : 25,
+    limit,
   })
 
   return NextResponse.json(
     {
       network: networkKey,
+      period: 'daily',
       game: game ?? 'all',
-      dayUtc: new Date().toISOString().slice(0, 10),
+      dayUtc,
+      historyDates: ARCADE_HISTORY_DATES,
       entries,
     },
     { headers: corsHeaders(req) },

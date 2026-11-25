@@ -6,6 +6,7 @@
 // Copy rule: this measures testnet activity. It promises nothing.
 
 import { TRACKER_CONFIG, type TrackerCategory } from '@/config/tracker'
+import { computeArcadeAirdropPoints } from '@/lib/arcade-airdrop'
 import type { AccountActivity, ActiveDay, StoredEvent } from '@/lib/activity-index'
 import { toFloat } from '@/lib/pl-exact-json'
 import { ASSET_DECIMALS, lpCandidates } from '@/lib/rails-pools'
@@ -193,9 +194,10 @@ export function scoreAccount(name: string, inp: TrackerInput): TrackerRow {
   const swapPts = swaps.length ? Math.min(c.swaps, logPts(c.swaps * 0.7, swapVal, 1) + Math.min(c.swaps * 0.3, swaps.length * 1.5)) : 0
   const plays = (inp.arcade ?? []).filter((x) => x.account === name && x.day >= since && x.score > 0)
   const playDays = new Set(plays.map((x) => x.day))
-  const games = new Set(plays.map((x) => x.game))
-  const nGames = Math.max(1, inp.arcadeGames ?? 1)
-  const arcadePts = c.arcade * (0.6 * Math.min(1, playDays.size / TRACKER_CONFIG.arcadeFullDays) + 0.4 * Math.min(1, games.size / nGames))
+  const arcadeEval = computeArcadeAirdropPoints(plays, inp.arcadeGames ?? 1, {
+    cap: c.arcade,
+    fullDays: TRACKER_CONFIG.arcadeFullDays,
+  })
   const wSlots = num(obj(inp.st.watcher_slots)[name])
   const wWork = num(obj(inp.st.watcher_work)[name])
   const infraPts = c.infra * (0.7 * Math.min(1, wSlots / TRACKER_CONFIG.watcherFullSlots) + 0.3 * Math.min(1, wWork / TRACKER_CONFIG.watcherFullWork))
@@ -223,7 +225,7 @@ export function scoreAccount(name: string, inp: TrackerInput): TrackerRow {
       tracked: true,
       detail: `${faucetDays.size} days with a faucet claim`,
     },
-    arcade: { points: arcadePts, cap: c.arcade, tracked: true, detail: `${playDays.size} days played · ${games.size} games` },
+    arcade: { points: arcadeEval.points, cap: c.arcade, tracked: true, detail: arcadeEval.detail },
     infra: { points: infraPts, cap: c.infra, tracked: true, detail: `${fmt(wSlots)} watcher slots · ${fmt(wWork)} rail work this epoch` },
     feedback: { points: Math.min(c.feedback, fb.points), cap: c.feedback, tracked: true, detail: `${fb.count} approved feedback item${fb.count === 1 ? '' : 's'} (bonus)` },
   }
