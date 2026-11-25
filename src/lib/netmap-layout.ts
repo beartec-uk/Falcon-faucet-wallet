@@ -1,126 +1,583 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
-// Pure layout for the 3D network map: hub on top, location groups on an arc below.
+// Pure organic force-directed P2P mesh layout, capping, and propagation helpers.
 
-import type { MapLocation, NetworkMapConfig } from '@/config/network-map'
+import type { NetworkMapConfig } from '@/config/network-map'
+import type { NetworkTopology } from '@/lib/netmap-topology'
+import type { ScanData } from '@/lib/scan-types'
+import { seatLag } from '@/lib/net-metrics'
 
-export type Vec3 = [number, number, number]
+export type MeshNodeKind = 'hub' | 'validator' | 'observer' | 'wallet'
 
-export interface PlacedSeat {
+export interface MeshNode {
   id: string
+  label: string
+  kind: MeshNodeKind
+  isHub: boolean
+  isArchive: boolean
+  online: boolean
+  jailed: boolean
+  inactive: boolean
   host: string
   locationId: string
   locationLabel: string
+  locationColor: string
   note?: string
-  pos: Vec3
-  /** Rotation about Y: the unit's front faces away from the hub. */
-  yaw: number
+  degree: number
+  tip: number | null
+  lag: number | null
+  packs: number
+  perf: number | null
+  x: number
+  y: number
+  vx: number
+  vy: number
+  radius: number
+  pinned?: boolean
+  /** Public seed endpoint probed by /api/scan/topology (tn.queried). */
+  isSeed?: boolean
 }
 
-export interface PlacedGroup {
+export interface MeshEdge {
+  id: string
+  source: string
+  target: string
+  kind: 'peer' | 'ingress'
+  mutual: boolean
+}
+
+export interface MeshGraph {
+  nodes: MeshNode[]
+  edges: MeshEdge[]
+  peerEdgeCount: number
+  totalPeerEdges: number
+  hubIds: string[]
+  archiveIds: string[]
+  cappedNodes: number
+  cappedEdges: number
+}
+
+export interface GeoCluster {
   id: string
   label: string
-  center: Vec3
-  /** Platform half-width along the group's tangent. */
-  width: number
-  /** Rotation about Y so the platform faces the hub. */
-  yaw: number
+  color: string
+  x: number
+  y: number
+  r: number
+  nodeIds: string[]
 }
 
-export interface MapLayout {
-  hub: { id: string; host: string; pos: Vec3 }
-  seats: PlacedSeat[]
-  groups: PlacedGroup[]
-  /** Wallet services node, straight above the hub on its axis. */
-  wallet: { label: string; sub: string; pos: Vec3 } | null
+export interface PropagationHop {
+  from: string
+  to: string
+  hop: number
 }
 
-const HUB_Y = 5.2
-const GROUP_Y = -1.6
-const RADIUS = 12
-const SEAT_GAP = 2.4
-/** Hub plinth rim radius: pipes leave from here, not through the tower. */
-export const HUB_RIM = 0.95
-export const HUB_BASE_DY = -1.75
-/**
- * Wallet services sits on the hub's vertical axis, above the watcher ring
- * (ring: hub + 1.45, r 3.6). Its beam drops straight down the axis through the
- * ring's empty centre into the top of the hub core, so it crosses nothing.
- */
-export const WALLET_DY = 3.9
-/** Beam ends at the top of the hub core (core radius 0.5). */
-export const HUB_CORE_TOP_DY = 0.6
-
-/**
- * @param statusSeats seats present in the live status (any order). Seats not in
- *        config are placed in an "Unplaced" group; offline unplaced seats are
- *        dropped unless `showUnplacedOffline`.
- */
-export function layoutMap(
-  cfg: NetworkMapConfig,
-  statusSeats: { id: string; online: boolean }[],
-): MapLayout {
-  const configured = new Set<string>([cfg.hub.seat])
-  const active = new Set(statusSeats.filter((s) => s.online).map((s) => s.id))
-  const locs: MapLocation[] = cfg.locations.map((l) => ({
-    ...l,
-    // Only active seats: drop placed seats that status reports offline, jailed or absent.
-    hosts: l.hosts.map((h) => ({ ...h, seats: h.seats.filter((s) => s !== cfg.hub.seat && (!statusSeats.length || active.has(s))) })),
-  }))
-  for (const l of locs) for (const h of l.hosts) h.seats.forEach((s) => configured.add(s))
-  const extra = statusSeats
-    .filter((s) => !configured.has(s.id) && (s.online || cfg.showUnplacedOffline))
-    .map((s) => s.id)
-    .sort()
-  if (extra.length) {
-    locs.push({ id: 'unplaced', label: '', hosts: [{ host: '', seats: extra }] })
+function hashSeed(s: string): number {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 16777619)
   }
-  const groups = locs.filter((l) => l.hosts.some((h) => h.seats.length))
+  return (h >>> 0) / 4294967296
+}
 
-  // Spread groups over a front-facing arc, weighting arc share by seat count.
-  const counts = groups.map((g) => g.hosts.reduce((n, h) => n + h.seats.length, 0))
-  const total = counts.reduce((a, b) => a + b, 0) || 1
-  const arc = Math.min(Math.PI * 0.64, 0.24 * (total + groups.length))
-  let cursor = -arc / 2
-  const placedGroups: PlacedGroup[] = []
-  const seats: PlacedSeat[] = []
-  groups.forEach((g, gi) => {
-    const share = (arc * (counts[gi] + 1)) / (total + groups.length)
-    const theta = cursor + share / 2
-    cursor += share
-    // theta = 0 is straight in front of the camera (+z).
-    const cx = Math.sin(theta) * RADIUS
-    const cz = Math.cos(theta) * RADIUS - 2.5
-    const tx = Math.cos(theta)
-    const tz = -Math.sin(theta)
-    const n = counts[gi]
-    const flat = g.hosts.flatMap((h) => h.seats.map((s) => ({ s, h })))
-    flat.forEach(({ s, h }, i) => {
-      const off = (i - (n - 1) / 2) * SEAT_GAP
-      seats.push({
-        id: s,
-        host: h.host,
-        note: h.note,
-        locationId: g.id,
-        locationLabel: g.label,
-        pos: [cx + tx * off, GROUP_Y, cz + tz * off],
-        yaw: theta,
+export function buildMeshGraph(
+  cfg: NetworkMapConfig,
+  scan: ScanData | null,
+  topology: NetworkTopology | null,
+  caps: { maxNodes: number; maxEdges: number },
+): MeshGraph {
+  const locBySeat = new Map<string, { id: string; label: string; color: string; host: string; note?: string }>()
+  for (const loc of cfg.locations) {
+    for (const h of loc.hosts) {
+      for (const s of h.seats) {
+        locBySeat.set(s, {
+          id: loc.id,
+          label: loc.label,
+          color: loc.color ?? '#C07838',
+          host: h.host,
+          note: h.note,
+        })
+      }
+    }
+  }
+
+  const onlineSeats = new Set(scan?.online_seats ?? [])
+  const scanValidators = new Map((scan?.validators ?? []).map((v) => [v.account, v]))
+  const topoNodes = new Map((topology?.nodes ?? []).map((n) => [n.id, n]))
+  const hubSet = new Set(topology?.hubs ?? [])
+  const archiveSet = new Set(topology?.archives ?? [])
+
+  const allIds = new Set<string>()
+  for (const s of onlineSeats) allIds.add(s)
+  for (const [id, v] of scanValidators) {
+    if (!v.jailed || cfg.showUnplacedOffline || onlineSeats.has(id) || hubSet.has(id)) {
+      if (onlineSeats.has(id) || hubSet.has(id) || cfg.showUnplacedOffline) allIds.add(id)
+    }
+  }
+  for (const tn of topology?.nodes ?? []) {
+    if (tn.online || tn.isHub || tn.connectedCount > 0 || cfg.showUnplacedOffline) {
+      allIds.add(tn.id)
+    }
+  }
+
+  const rawNodes: MeshNode[] = []
+  for (const id of allIds) {
+    const tn = topoNodes.get(id)
+    const sv = scanValidators.get(id)
+    const loc = locBySeat.get(id)
+    const isHub = Boolean(tn?.isHub || hubSet.has(id))
+    const isArchive = Boolean(tn?.isArchive || archiveSet.has(id))
+    const online = onlineSeats.has(id) || Boolean(tn?.online)
+    const jailed = Boolean(sv?.jailed || tn?.jailed)
+    const inactive = Boolean(tn?.inactive)
+    const isObserver = tn?.role === 'observer' || id.startsWith('obs-')
+    const kind: MeshNodeKind = isHub ? 'hub' : isObserver ? 'observer' : 'validator'
+
+    const tip = sv?.ledger_index && sv.ledger_index > 0 ? sv.ledger_index : tn?.tip ?? null
+    const lag =
+      scan && sv
+        ? seatLag(scan.height, {
+            id,
+            online,
+            jailed,
+            tip: tip ?? 0,
+            packs: sv.pack_count ?? 0,
+            perf: sv.perf ?? null,
+          })
+        : null
+
+    const angle = hashSeed(id) * Math.PI * 2
+    const dist = 120 + hashSeed(id + ':r') * 120
+    rawNodes.push({
+      id,
+      label: isObserver ? `${id.slice(0, 10)}…` : id,
+      kind,
+      isHub,
+      isArchive,
+      isSeed: Boolean(tn?.queried),
+      online,
+      jailed,
+      inactive,
+      host: loc?.host ?? '',
+      locationId: loc?.id ?? (isObserver ? 'observers' : 'unplaced'),
+      locationLabel: loc?.label ?? '',
+      locationColor: loc?.color ?? '#64748B',
+      note: loc?.note,
+      degree: tn?.connectedCount ?? 0,
+      tip,
+      lag,
+      packs: sv?.pack_count ?? 0,
+      perf: sv?.perf ?? null,
+      x: Math.cos(angle) * dist,
+      y: Math.sin(angle) * dist,
+      vx: 0,
+      vy: 0,
+      radius: isHub ? 22 : isObserver ? 11 : 16,
+    })
+  }
+
+  const hubIds = rawNodes.filter((n) => n.isHub).map((n) => n.id).sort()
+  const archiveIds = rawNodes.filter((n) => n.isArchive).map((n) => n.id).sort()
+
+  // Optional Wallet Services ingress node, connected equally to all live hubs (or top online validator).
+  const rawEdges: MeshEdge[] = []
+  for (const e of topology?.edges ?? []) {
+    if (allIds.has(e.source) && allIds.has(e.target)) {
+      rawEdges.push({
+        id: `peer:${e.source}--${e.target}`,
+        source: e.source,
+        target: e.target,
+        kind: 'peer',
+        mutual: e.mutual,
       })
+    }
+  }
+
+  if (cfg.wallet && rawNodes.length > 0) {
+    const targets = hubIds.length
+      ? hubIds
+      : rawNodes
+          .filter((n) => n.online && n.kind === 'validator')
+          .sort((a, b) => b.degree - a.degree || a.id.localeCompare(b.id))
+          .slice(0, 2)
+          .map((n) => n.id)
+    const wa = hashSeed('__wallet__') * Math.PI * 2
+    rawNodes.push({
+      id: '__wallet__',
+      label: cfg.wallet.label,
+      kind: 'wallet',
+      isHub: false,
+      isArchive: false,
+      online: true,
+      jailed: false,
+      inactive: false,
+      host: cfg.wallet.sub,
+      locationId: 'ingress',
+      locationLabel: '',
+      locationColor: '#D4922A',
+      degree: targets.length,
+      tip: null,
+      lag: null,
+      packs: 0,
+      perf: null,
+      x: Math.cos(wa) * 210,
+      y: Math.sin(wa) * 210,
+      vx: 0,
+      vy: 0,
+      radius: 17,
     })
-    placedGroups.push({
-      id: g.id,
-      label: g.label,
-      center: [cx, GROUP_Y - 0.55, cz],
-      width: Math.max(1.2, (n * SEAT_GAP) / 2 + 0.2),
-      yaw: theta,
-    })
-  })
+    for (const t of targets) {
+      rawEdges.push({
+        id: `ingress:__wallet__--${t}`,
+        source: '__wallet__',
+        target: t,
+        kind: 'ingress',
+        mutual: true,
+      })
+    }
+  }
+
+  const totalPeerEdges = rawEdges.filter((e) => e.kind === 'peer').length
+  const capped = capTopology(rawNodes, rawEdges, caps)
 
   return {
-    hub: { id: cfg.hub.seat, host: cfg.hub.host, pos: [0, HUB_Y, -2.5] },
-    seats,
-    groups: placedGroups,
-    wallet: cfg.wallet ? { label: cfg.wallet.label, sub: cfg.wallet.sub, pos: [0, HUB_Y + WALLET_DY, -2.5] } : null,
+    nodes: capped.nodes,
+    edges: capped.edges,
+    peerEdgeCount: capped.edges.filter((e) => e.kind === 'peer').length,
+    totalPeerEdges,
+    hubIds,
+    archiveIds,
+    cappedNodes: Math.max(0, rawNodes.length - capped.nodes.length),
+    cappedEdges: Math.max(0, rawEdges.length - capped.edges.length),
   }
+}
+
+export function capTopology(
+  nodes: MeshNode[],
+  edges: MeshEdge[],
+  caps: { maxNodes: number; maxEdges: number },
+): { nodes: MeshNode[]; edges: MeshEdge[] } {
+  const maxN = Math.max(1, caps.maxNodes)
+  const maxE = Math.max(0, caps.maxEdges)
+
+  const nodePriority = (n: MeshNode) => {
+    if (n.isHub) return 0
+    if (n.kind === 'wallet') return 1
+    if (n.online && !n.jailed && !n.inactive && n.kind === 'validator') return 2
+    if (n.online && n.kind === 'observer') return 3
+    if (n.degree > 0) return 4
+    return 5
+  }
+
+  const keptNodes = [...nodes]
+    .sort(
+      (a, b) =>
+        nodePriority(a) - nodePriority(b) ||
+        b.degree - a.degree ||
+        a.id.localeCompare(b.id, 'en', { numeric: true }),
+    )
+    .slice(0, maxN)
+
+  const keptById = new Map(keptNodes.map((n) => [n.id, n]))
+
+  const edgePriority = (e: MeshEdge) => {
+    if (e.kind === 'ingress') return 3
+    const a = keptById.get(e.source)
+    const b = keptById.get(e.target)
+    if (a?.isHub && b?.isHub) return 0
+    if (a?.isHub || b?.isHub) return 1
+    if (a?.kind === 'validator' && b?.kind === 'validator') return 2
+    return 4
+  }
+
+  const keptEdges = edges
+    .filter((e) => keptById.has(e.source) && keptById.has(e.target))
+    .sort((a, b) => edgePriority(a) - edgePriority(b) || a.id.localeCompare(b.id))
+    .slice(0, maxE)
+
+  return { nodes: keptNodes, edges: keptEdges }
+}
+
+export interface ForceOpts {
+  repulsion?: number
+  springK?: number
+  restLength?: number
+  centerGravity?: number
+  geoCohesion?: number
+  minSep?: number
+  damping?: number
+  dt?: number
+}
+
+/**
+ * Single deterministic step of the 2D organic force-directed P2P mesh.
+ * All hubs and validators are equal peers in the force simulation (no pinned root).
+ */
+export function stepForceMesh(nodes: MeshNode[], edges: MeshEdge[], opts: ForceOpts = {}): number {
+  const repulsion = opts.repulsion ?? 26_000
+  const springK = opts.springK ?? 0.036
+  const restLength = opts.restLength ?? 155
+  const centerGravity = opts.centerGravity ?? 0.012
+  const geoCohesion = opts.geoCohesion ?? 0.014
+  const minSep = opts.minSep ?? 64
+  const damping = opts.damping ?? 0.82
+  const dt = opts.dt ?? 1
+
+  const n = nodes.length
+  if (n === 0) return 0
+  const fx = new Float64Array(n)
+  const fy = new Float64Array(n)
+  const idxById = new Map<string, number>()
+  for (let i = 0; i < n; i++) idxById.set(nodes[i].id, i)
+
+  // Pairwise repulsion + minimum separation collision push.
+  for (let i = 0; i < n; i++) {
+    const a = nodes[i]
+    for (let j = i + 1; j < n; j++) {
+      const b = nodes[j]
+      let dx = b.x - a.x
+      let dy = b.y - a.y
+      let d2 = dx * dx + dy * dy
+      if (d2 < 0.01) {
+        const ang = (i * 1.7 + j * 2.3) % (Math.PI * 2)
+        dx = Math.cos(ang) * 0.5
+        dy = Math.sin(ang) * 0.5
+        d2 = 0.25
+      }
+      const d = Math.sqrt(d2)
+      const weight = (a.isHub || b.isHub ? 1.2 : 1) * (a.kind === 'wallet' || b.kind === 'wallet' ? 1.1 : 1)
+      const f = (repulsion * weight) / Math.max(400, d2)
+      const ux = dx / d
+      const uy = dy / d
+      fx[i] -= ux * f
+      fy[i] -= uy * f
+      fx[j] += ux * f
+      fy[j] += uy * f
+
+      const want = minSep + (a.radius + b.radius) * 0.65
+      if (d < want) {
+        const push = (want - d) * 0.28
+        fx[i] -= ux * push
+        fy[i] -= uy * push
+        fx[j] += ux * push
+        fy[j] += uy * push
+      }
+    }
+  }
+
+  // Spring attraction along real peer & ingress edges.
+  for (const e of edges) {
+    const i = idxById.get(e.source)
+    const j = idxById.get(e.target)
+    if (i == null || j == null) continue
+    const a = nodes[i]
+    const b = nodes[j]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const d = Math.hypot(dx, dy) || 1
+    const targetLen =
+      e.kind === 'ingress'
+        ? restLength * 1.15
+        : a.locationId === b.locationId && a.locationLabel
+          ? restLength * 0.72
+          : a.isHub && b.isHub
+            ? restLength * 0.92
+            : restLength
+    const f = springK * (d - targetLen)
+    const ux = dx / d
+    const uy = dy / d
+    fx[i] += ux * f
+    fy[i] += uy * f
+    fx[j] -= ux * f
+    fy[j] -= uy * f
+  }
+
+  // Soft geographic cluster cohesion (keeps region peers gently grouped).
+  const groupSum = new Map<string, { sx: number; sy: number; c: number }>()
+  for (const node of nodes) {
+    if (!node.locationLabel) continue
+    const g = groupSum.get(node.locationId) ?? { sx: 0, sy: 0, c: 0 }
+    g.sx += node.x
+    g.sy += node.y
+    g.c += 1
+    groupSum.set(node.locationId, g)
+  }
+
+  let energy = 0
+  for (let i = 0; i < n; i++) {
+    const node = nodes[i]
+    if (node.pinned) {
+      node.vx = 0
+      node.vy = 0
+      continue
+    }
+    fx[i] -= node.x * centerGravity
+    fy[i] -= node.y * centerGravity
+
+    if (node.locationLabel) {
+      const g = groupSum.get(node.locationId)
+      if (g && g.c > 1) {
+        fx[i] += (g.sx / g.c - node.x) * geoCohesion
+        fy[i] += (g.sy / g.c - node.y) * geoCohesion
+      }
+    }
+
+    node.vx = (node.vx + fx[i] * dt) * damping
+    node.vy = (node.vy + fy[i] * dt) * damping
+    const speed = Math.hypot(node.vx, node.vy)
+    if (speed > 24) {
+      node.vx = (node.vx / speed) * 24
+      node.vy = (node.vy / speed) * 24
+    }
+    node.x += node.vx * dt
+    node.y += node.vy * dt
+    energy += node.vx * node.vx + node.vy * node.vy
+  }
+
+  return energy / n
+}
+
+export function solveForceMesh(nodes: MeshNode[], edges: MeshEdge[], iterations = 180, opts: ForceOpts = {}): void {
+  // Place nodes initially in a clean evenly spaced circle ordered by region/id so
+  // layout is reproducible and symmetric across all equal hubs.
+  const ordered = [...nodes].sort(
+    (a, b) => a.locationId.localeCompare(b.locationId) || a.id.localeCompare(b.id, 'en', { numeric: true }),
+  )
+  const baseR = Math.max(120, Math.min(260, ordered.length * 16))
+  ordered.forEach((node, idx) => {
+    if (node.pinned) return
+    const theta = (idx / Math.max(1, ordered.length)) * Math.PI * 2 - Math.PI / 2
+    const jitter = (hashSeed(node.id + ':init') - 0.5) * 32
+    node.x = Math.cos(theta) * (baseR + jitter)
+    node.y = Math.sin(theta) * (baseR + jitter)
+    node.vx = 0
+    node.vy = 0
+  })
+
+  for (let i = 0; i < iterations; i++) {
+    const energy = stepForceMesh(nodes, edges, opts)
+    if (i > 40 && energy < 0.02) break
+  }
+}
+
+export function geoClusters(nodes: MeshNode[]): GeoCluster[] {
+  const byLoc = new Map<string, MeshNode[]>()
+  for (const n of nodes) {
+    if (!n.locationLabel) continue
+    const arr = byLoc.get(n.locationId) ?? []
+    arr.push(n)
+    byLoc.set(n.locationId, arr)
+  }
+  const clusters: GeoCluster[] = []
+  for (const [id, list] of byLoc) {
+    const cx = list.reduce((s, n) => s + n.x, 0) / list.length
+    const cy = list.reduce((s, n) => s + n.y, 0) / list.length
+    let maxD = 0
+    for (const n of list) maxD = Math.max(maxD, Math.hypot(n.x - cx, n.y - cy) + n.radius)
+    clusters.push({
+      id,
+      label: list[0].locationLabel,
+      color: list[0].locationColor,
+      x: cx,
+      y: cy,
+      r: maxD + 30,
+      nodeIds: list.map((n) => n.id),
+    })
+  }
+  return clusters.sort((a, b) => a.id.localeCompare(b.id))
+}
+
+/**
+ * BFS hop-by-hop propagation plan outward from `packerId` over real peer edges.
+ */
+export function propagationPlan(
+  edges: Pick<MeshEdge, 'source' | 'target' | 'kind'>[],
+  packerId: string,
+): { hopByNode: Record<string, number>; hops: PropagationHop[]; maxHop: number } {
+  const hopByNode: Record<string, number> = {}
+  const hops: PropagationHop[] = []
+  if (!packerId) return { hopByNode, hops, maxHop: 0 }
+
+  const adj = new Map<string, string[]>()
+  for (const e of edges) {
+    if (e.kind !== 'peer') continue
+    const a = adj.get(e.source) ?? []
+    a.push(e.target)
+    adj.set(e.source, a)
+    const b = adj.get(e.target) ?? []
+    b.push(e.source)
+    adj.set(e.target, b)
+  }
+  for (const list of adj.values()) list.sort()
+
+  hopByNode[packerId] = 0
+  const q: string[] = [packerId]
+  let maxHop = 0
+  while (q.length > 0) {
+    const cur = q.shift()!
+    const nextHop = hopByNode[cur] + 1
+    for (const nb of adj.get(cur) ?? []) {
+      if (hopByNode[nb] === undefined) {
+        hopByNode[nb] = nextHop
+        maxHop = Math.max(maxHop, nextHop)
+        hops.push({ from: cur, to: nb, hop: nextHop })
+        q.push(nb)
+      }
+    }
+  }
+  return { hopByNode, hops, maxHop }
+}
+
+/** Shortest peer-edge paths from each voter to `packerId` (returns segment pairs [u, v]). */
+export function votePaths(
+  edges: Pick<MeshEdge, 'source' | 'target' | 'kind'>[],
+  voters: string[],
+  packerId: string,
+): Array<[string, string][]> {
+  if (!packerId) return []
+  const adj = new Map<string, string[]>()
+  for (const e of edges) {
+    if (e.kind !== 'peer') continue
+    const a = adj.get(e.source) ?? []
+    a.push(e.target)
+    adj.set(e.source, a)
+    const b = adj.get(e.target) ?? []
+    b.push(e.source)
+    adj.set(e.target, b)
+  }
+  for (const list of adj.values()) list.sort()
+
+  // Reverse BFS from packerId gives shortest path parent toward packerId.
+  const nextTowardPacker = new Map<string, string>()
+  const visited = new Set<string>([packerId])
+  const q: string[] = [packerId]
+  while (q.length > 0) {
+    const cur = q.shift()!
+    for (const nb of adj.get(cur) ?? []) {
+      if (!visited.has(nb)) {
+        visited.add(nb)
+        nextTowardPacker.set(nb, cur)
+        q.push(nb)
+      }
+    }
+  }
+
+  const paths: Array<[string, string][]> = []
+  for (const v of voters) {
+    if (!v || v === packerId || !nextTowardPacker.has(v)) continue
+    const segs: [string, string][] = []
+    let cur = v
+    let guard = 0
+    while (cur !== packerId && guard++ < 16) {
+      const nxt = nextTowardPacker.get(cur)
+      if (!nxt) break
+      segs.push([cur, nxt])
+      cur = nxt
+    }
+    if (segs.length) paths.push(segs)
+  }
+  return paths
 }
 
 /** Fill fraction for the packer ring: block txs vs. the biggest recent block (floor 100). */
@@ -133,77 +590,4 @@ export function ringFill(txs: number, recentMax: number): number {
 export function bulgeCount(newTxs: number, cap: number): number {
   if (!(newTxs > 0)) return 0
   return Math.max(1, Math.min(cap, Math.ceil(newTxs / 10)))
-}
-
-/** Pipe start for a seat: the hub plinth rim on the side facing that seat. */
-export function hubRimPoint(hub: Vec3, seat: Vec3): Vec3 {
-  const dx = seat[0] - hub[0]
-  const dz = seat[2] - hub[2]
-  const l = Math.hypot(dx, dz) || 1
-  return [hub[0] + (dx / l) * HUB_RIM, hub[1] + HUB_BASE_DY, hub[2] + (dz / l) * HUB_RIM]
-}
-
-/** Minimum distance between segments p1-p2 and q1-q2 (for overlap checks in tests). */
-export function segDist(p1: Vec3, p2: Vec3, q1: Vec3, q2: Vec3): number {
-  const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-  const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-  const d1 = sub(p2, p1), d2 = sub(q2, q1), r = sub(p1, q1)
-  const a = dot(d1, d1), e = dot(d2, d2), f = dot(d2, r)
-  let s = 0, t = 0
-  const c = dot(d1, r), b = dot(d1, d2), den = a * e - b * b
-  s = den > 1e-9 ? Math.min(1, Math.max(0, (b * f - c * e) / den)) : 0
-  t = e > 1e-9 ? (b * s + f) / e : 0
-  if (t < 0) { t = 0; s = a > 1e-9 ? Math.min(1, Math.max(0, -c / a)) : 0 }
-  else if (t > 1) { t = 1; s = a > 1e-9 ? Math.min(1, Math.max(0, (b - c) / a)) : 0 }
-  const pc: Vec3 = [p1[0] + d1[0] * s, p1[1] + d1[1] * s, p1[2] + d1[2] * s]
-  const qc: Vec3 = [q1[0] + d2[0] * t, q1[1] + d2[1] * t, q1[2] + d2[2] * t]
-  const w = sub(pc, qc)
-  return Math.sqrt(dot(w, w))
-}
-
-export const SEAT_TOP_DY = 0.22
-export const RAIL_INSET = 1.25
-export const RAIL_DY = -0.38
-/** Arc centre on the ground plane (the hub stands above it). */
-export const ARC_CENTER: [number, number] = [0, -2.5]
-
-/** Hub → seat pipe as quadratic Bézier points [start, control, end]. */
-export function pipePoints(hub: Vec3, seat: Vec3): [Vec3, Vec3, Vec3] {
-  const a = hubRimPoint(hub, seat)
-  const b: Vec3 = [seat[0], seat[1] + SEAT_TOP_DY, seat[2]]
-  // Control point sits in the same vertical plane as a→b, so pipes to
-  // different seats never cross (each stays in its own azimuth plane).
-  const c: Vec3 = [a[0] + (b[0] - a[0]) * 0.62, a[1] - 0.25, a[2] + (b[2] - a[2]) * 0.62]
-  return [a, c, b]
-}
-
-export function bezier(p: [Vec3, Vec3, Vec3], t: number): Vec3 {
-  const u = 1 - t
-  return [0, 1, 2].map((i) => u * u * p[0][i] + 2 * u * t * p[1][i] + t * t * p[2][i]) as Vec3
-}
-
-/** Angle of a ground point around ARC_CENTER (0 = toward camera, +x positive). */
-export function arcAngle(p: Vec3): number {
-  return Math.atan2(p[0] - ARC_CENTER[0], p[2] - ARC_CENTER[1])
-}
-
-/**
- * Vote route from one seat to another along the consensus rail: drop from the
- * voter's front-inner edge to the rail (inside the arc, below every pipe), run
- * along it, rise to the packer. Returns control points for a smooth spline.
- */
-export function railRoute(from: Vec3, to: Vec3, steps = 10): Vec3[] {
-  const ra = Math.hypot(from[0] - ARC_CENTER[0], from[2] - ARC_CENTER[1]) - RAIL_INSET
-  const rb = Math.hypot(to[0] - ARC_CENTER[0], to[2] - ARC_CENTER[1]) - RAIL_INSET
-  const a0 = arcAngle(from)
-  const a1 = arcAngle(to)
-  const y = from[1] + RAIL_DY
-  const at = (ang: number, r: number, yy: number): Vec3 => [ARC_CENTER[0] + Math.sin(ang) * r, yy, ARC_CENTER[1] + Math.cos(ang) * r]
-  const pts: Vec3[] = [[from[0], from[1] + 0.05, from[2]], at(a0, ra + 0.75, y + 0.12)]
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps
-    pts.push(at(a0 + (a1 - a0) * t, ra + (rb - ra) * t, y))
-  }
-  pts.push(at(a1, rb + 0.75, y + 0.12), [to[0], to[1] + 0.05, to[2]])
-  return pts
 }
