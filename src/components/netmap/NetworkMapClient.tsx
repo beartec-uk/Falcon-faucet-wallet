@@ -434,7 +434,7 @@ export default function NetworkMapClient() {
                   ? `Switch to ${renderer === '3d' ? '2D' : '3D'} view`
                   : 'WebGL not available — 2D view'
             }
-            className="pointer-events-auto text-[11px] netmap-mono text-[#E0DBCA] border border-slate-700 rounded-lg px-2 py-1 bg-[#0F172A]/90 disabled:opacity-50 max-md:ml-auto"
+            className="hidden md:inline-block pointer-events-auto text-[11px] netmap-mono text-[#E0DBCA] border border-slate-700 rounded-lg px-2 py-1 bg-[#0F172A]/90 disabled:opacity-50"
             aria-label={`Switch to ${renderer === '3d' ? '2D' : '3D'} view`}
           >
             {renderer === '3d' ? '2D' : '3D'}
@@ -443,7 +443,7 @@ export default function NetworkMapClient() {
         <button
           type="button"
           onClick={() => setMobileDrawer((v) => !v)}
-          className="md:hidden pointer-events-auto text-[11px] netmap-mono text-[#E0DBCA] border border-slate-700 rounded-lg px-2.5 py-1 bg-[#0F172A]/90"
+          className="md:hidden pointer-events-auto ml-auto text-[11px] netmap-mono text-[#E0DBCA] border border-slate-700 rounded-lg px-2.5 py-1 bg-[#0F172A]/90"
         >
           {mobileDrawer ? 'Close' : 'Stats & Legend'}
         </button>
@@ -457,6 +457,17 @@ export default function NetworkMapClient() {
       {/* Mobile slide-over drawer */}
       {mobileDrawer && (
         <aside className="md:hidden absolute inset-x-0 top-[62px] bottom-[76px] z-20 bg-[#0F172A] border-t border-slate-800 p-3.5 overflow-y-auto flex flex-col gap-3">
+          {renderer && (
+            <button
+              type="button"
+              onClick={toggleRenderer}
+              disabled={!webgl && renderer === '2d'}
+              className="self-start text-[11px] netmap-mono text-[#E0DBCA] border border-slate-700 rounded-lg px-2.5 py-1 bg-[#020617] disabled:opacity-50"
+            >
+              {renderer === '3d' ? 'Switch to 2D view (lighter)' : webgl ? 'Switch to 3D view' : '3D needs WebGL'}
+              {fallbackReason ? ' · 3D failed, using 2D' : ''}
+            </button>
+          )}
           {sidebarContent}
         </aside>
       )}

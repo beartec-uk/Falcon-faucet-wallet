@@ -533,24 +533,14 @@ function Pulses({
 }
 
 function GeoHalos({ halos }: { halos: { id: string; label: string; color: string; c: Vec3; r: number }[] }) {
+  // Faint region orbit only; region names are carried in each node's label.
   return (
     <group>
       {halos.map((h) => (
-        <group key={h.id} position={h.c}>
-          <mesh raycast={() => null}>
-            <sphereGeometry args={[h.r, 32, 20]} />
-            <meshBasicMaterial color={h.color} transparent opacity={0.035} side={THREE.BackSide} depthWrite={false} />
-          </mesh>
-          <mesh rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
-            <torusGeometry args={[h.r, 0.012, 6, 96]} />
-            <meshBasicMaterial color={h.color} transparent opacity={0.35} toneMapped={false} />
-          </mesh>
-          <Html position={[0, h.r + 0.35, 0]} center zIndexRange={[3, 0]} style={{ pointerEvents: 'none' }}>
-            <div className="netmap3d-geo" style={{ color: h.color }}>
-              {h.label.toUpperCase()}
-            </div>
-          </Html>
-        </group>
+        <mesh key={h.id} position={h.c} rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
+          <torusGeometry args={[h.r, 0.01, 6, 96]} />
+          <meshBasicMaterial color={h.color} transparent opacity={0.16} depthWrite={false} toneMapped={false} />
+        </mesh>
       ))}
     </group>
   )
@@ -604,7 +594,7 @@ function CameraRig({
     const aspect = size.width / Math.max(1, size.height)
     const half = THREE.MathUtils.degToRad(cam.fov / 2)
     const fitR = R_LAYOUT + 1.6
-    const dist = fitR / (Math.tan(half) * Math.min(1, aspect)) * (isMobile ? 1.0 : 0.95)
+    const dist = fitR / (Math.tan(half) * Math.min(1, aspect)) * (isMobile ? 0.78 : 0.9)
     const dir = new THREE.Vector3(0.18, 0.32, 1).normalize()
     cam.position.copy(dir.multiplyScalar(dist))
     cam.near = 0.1
@@ -709,12 +699,11 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
       const ps = list.map((n) => pos.get(n.id)).filter(Boolean) as Vec3[]
       if (ps.length < 2) continue
       const c: Vec3 = [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length) as Vec3
-      const r = Math.max(...ps.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]))) + 1.3
+      const r = Math.max(...ps.map((p) => Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]))) + 0.9
       out.push({ id, label: list[0].locationLabel, color: list[0].locationColor, c, r })
     }
     return out
   }, [graph, pos])
-  const multiGeo = useMemo(() => new Set(halos.map((h) => h.id)), [halos])
 
   const anim = useRef<Anim>({
     waves: [],
@@ -845,7 +834,7 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
                 packerFill={packerFill}
                 anim={anim}
                 walletCount={walletCount ?? null}
-                showGeoInLabel={!multiGeo.has(n.locationId)}
+                showGeoInLabel
                 onSelect={onSelect}
                 onHover={setHovered}
               />
