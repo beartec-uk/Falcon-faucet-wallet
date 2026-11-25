@@ -33,6 +33,8 @@ export interface MeshNode {
   vy: number
   radius: number
   pinned?: boolean
+  /** Public seed endpoint probed by /api/scan/topology (tn.queried). */
+  isSeed?: boolean
 }
 
 export interface MeshEdge {
@@ -153,6 +155,7 @@ export function buildMeshGraph(
       kind,
       isHub,
       isArchive,
+      isSeed: Boolean(tn?.queried),
       online,
       jailed,
       inactive,

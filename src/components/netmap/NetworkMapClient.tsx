@@ -12,6 +12,7 @@ import type { MetricPoint } from '@/lib/metric-history'
 import TrendChart from '@/components/explorer/TrendChart'
 import MetricModal, { seatOptions } from '@/components/explorer/MetricModal'
 import { nextInterval, nextRound, sealedRound } from '@/lib/netmap-consensus'
+import { chooseRenderer, type RendererMode } from '@/lib/netmap-layout3d'
 
 const PeerMeshCanvas = dynamic(() => import('@/components/netmap/PeerMeshCanvas'), {
   ssr: false,
@@ -21,6 +22,28 @@ const PeerMeshCanvas = dynamic(() => import('@/components/netmap/PeerMeshCanvas'
     </div>
   ),
 })
+
+// Real-3D scene (three.js / react-three-fiber) — its own lazy chunk, never SSR'd,
+// and only fetched when the device gets the 3D renderer.
+const PeerMesh3D = dynamic(() => import('@/components/netmap/PeerMesh3D'), {
+  ssr: false,
+  loading: () => (
+    <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+      Loading 3D mesh…
+    </div>
+  ),
+})
+
+const RENDERER_KEY = 'netmap-renderer'
+
+function detectWebGL(): boolean {
+  try {
+    const c = document.createElement('canvas')
+    return Boolean(c.getContext('webgl2') || c.getContext('webgl'))
+  } catch {
+    return false
+  }
+}
 
 const LIVE_WINDOW_MS = 5 * 60_000
 
@@ -51,6 +74,61 @@ export default function NetworkMapClient() {
   const [mobileDrawer, setMobileDrawer] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const fpsRef = useRef<HTMLSpanElement | null>(null)
+  const [renderer, setRenderer] = useState<RendererMode | null>(null)
+  const [webgl, setWebgl] = useState(false)
+  const [reducedMotion, setReducedMotion] = useState(false)
+  const [fallbackReason, setFallbackReason] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mobile = window.matchMedia?.('(max-width: 767px)').matches ?? false
+    const gl = detectWebGL()
+    setWebgl(gl)
+    const q = new URLSearchParams(window.location.search).get('renderer')
+    let stored: string | null = null
+    try {
+      stored = window.localStorage.getItem(RENDERER_KEY)
+    } catch {
+      /* private mode */
+    }
+    const pick = (v: string | null): RendererMode | null => (v === '2d' || v === '3d' ? v : null)
+    const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } }
+    setRenderer(
+      chooseRenderer({
+        webgl: gl,
+        mobile,
+        cores: nav.hardwareConcurrency ?? null,
+        memoryGb: nav.deviceMemory ?? null,
+        saveData: Boolean(nav.connection?.saveData),
+        override: pick(q) ?? pick(stored),
+      }),
+    )
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    if (mq) {
+      setReducedMotion(mq.matches)
+      const onChange = () => setReducedMotion(mq.matches)
+      mq.addEventListener('change', onChange)
+      return () => mq.removeEventListener('change', onChange)
+    }
+  }, [])
+
+  const toggleRenderer = useCallback(() => {
+    setRenderer((cur) => {
+      const next: RendererMode = cur === '3d' ? '2d' : '3d'
+      try {
+        window.localStorage.setItem(RENDERER_KEY, next)
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+    setFallbackReason(null)
+  }, [])
+
+  const on3DFail = useCallback((reason: string) => {
+    setFallbackReason(reason)
+    setRenderer('2d')
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return
@@ -202,6 +280,17 @@ export default function NetworkMapClient() {
 
       <div className="rounded-xl border border-slate-800 p-3 text-xs space-y-1.5">
         <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-1">Legend</div>
+        {renderer === '3d' && (
+          <div className="mb-1.5 space-y-1">
+            <Shape c="#C07838" t={`Hub · copper core + gyro rings (${hubList.length || 0} live, all equal)`} />
+            <Shape c="#2DD4BF" t="Validator · faceted crystal in wire shell" />
+            <Shape c="#A78BFA" t={`Archive · violet platter stack (${archiveList.length ? archiveList.length : 'none'} flagged)`} />
+            <Shape c="#E0DBCA" t="Public seed · white beacon antenna" />
+            <Shape c="#D4922A" t="Wallet services · gold diamond in wire cube" />
+            <Shape c="#38BDF8" t="Peer link · glowing tube (copper = hub↔hub)" />
+            <div className="text-[10px] text-slate-500">Drag to orbit · pinch / scroll to zoom</div>
+          </div>
+        )}
         <Legend c="#C07838" t={`Equal peer hubs (${hubList.length || 0} live)`} />
         <Legend c="#FFC060" t="Packer (lottery winner) · ring = block txs" />
         <Legend c="#4ADE80" t="Committee voter this round" />
@@ -275,7 +364,23 @@ export default function NetworkMapClient() {
 
       {/* Main organic peer-to-peer mesh viewport */}
       <div className="absolute inset-0 right-0 md:right-[340px] bottom-[76px] md:bottom-[86px]">
-        {data ? (
+        {data && renderer === '3d' ? (
+          <PeerMesh3D
+            graph={graph}
+            event={event}
+            maxBulges={CFG.maxBulges}
+            selected={selected}
+            onSelect={onSelect}
+            fpsRef={fpsRef}
+            watchers={watcherProps}
+            consensus={consensusView}
+            walletCount={data.wallets?.activated ?? null}
+            tps={live.rate60s?.tps ?? null}
+            isMobile={isMobile}
+            reducedMotion={reducedMotion}
+            onFail={on3DFail}
+          />
+        ) : data && renderer === '2d' ? (
           <PeerMeshCanvas
             graph={graph}
             event={event}
@@ -293,7 +398,9 @@ export default function NetworkMapClient() {
           <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm px-4 text-center">
             {feed.error
               ? `Status unavailable: ${feed.error}. Retrying…`
-              : 'Connecting to Falcon PL mesh…'}
+              : data
+                ? 'Preparing mesh…'
+                : 'Connecting to Falcon PL mesh…'}
           </div>
         )}
       </div>
@@ -315,10 +422,28 @@ export default function NetworkMapClient() {
           {!isMobile && feed.lastPollMs != null ? ` · rtt ${feed.lastPollMs}ms` : ''}
         </span>
         <span ref={fpsRef} className="hidden sm:inline netmap-mono text-[11px] text-slate-600 ml-auto" />
+        {renderer && (
+          <button
+            type="button"
+            onClick={toggleRenderer}
+            disabled={!webgl && renderer === '2d'}
+            title={
+              fallbackReason
+                ? `3D unavailable (${fallbackReason}) — showing 2D`
+                : webgl
+                  ? `Switch to ${renderer === '3d' ? '2D' : '3D'} view`
+                  : 'WebGL not available — 2D view'
+            }
+            className="pointer-events-auto text-[11px] netmap-mono text-[#E0DBCA] border border-slate-700 rounded-lg px-2 py-1 bg-[#0F172A]/90 disabled:opacity-50 max-md:ml-auto"
+            aria-label={`Switch to ${renderer === '3d' ? '2D' : '3D'} view`}
+          >
+            {renderer === '3d' ? '2D' : '3D'}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setMobileDrawer((v) => !v)}
-          className="md:hidden pointer-events-auto ml-auto text-[11px] netmap-mono text-[#E0DBCA] border border-slate-700 rounded-lg px-2.5 py-1 bg-[#0F172A]/90"
+          className="md:hidden pointer-events-auto text-[11px] netmap-mono text-[#E0DBCA] border border-slate-700 rounded-lg px-2.5 py-1 bg-[#0F172A]/90"
         >
           {mobileDrawer ? 'Close' : 'Stats & Legend'}
         </button>
@@ -448,6 +573,15 @@ function ConsensusPanel({
   )
 }
 
+function Shape({ c, t }: { c: string; t: string }) {
+  return (
+    <div className="flex items-center gap-2 text-slate-300">
+      <span className="w-2.5 h-2.5 rotate-45 shrink-0 border" style={{ borderColor: c, background: `${c}55` }} />
+      <span>{t}</span>
+    </div>
+  )
+}
+
 function Legend({ c, t, dot }: { c: string; t: string; dot?: boolean }) {
   return (
     <div className="flex items-center gap-2 text-slate-300">
@@ -485,6 +619,11 @@ function BlockTicker({ blocks }: { blocks: SealedBlock[] }) {
 
 const CSS = `
 html.has-shop-bar .netmap-root{top:2.25rem}
+.netmap3d-label{font-family:var(--font-mono),'JetBrains Mono',monospace;text-align:center;white-space:nowrap;transform:translateY(4px);text-shadow:0 1px 3px #020617,0 0 8px #020617}
+.netmap3d-label .t{font-size:11px;font-weight:600;color:#E0DBCA;line-height:1.2}
+.netmap3d-label .s{font-size:9px;color:#94A3B8;line-height:1.2}
+.netmap3d-geo{font:600 10px Inter,system-ui,sans-serif;letter-spacing:.14em;white-space:nowrap;opacity:.85;text-shadow:0 0 6px #020617}
+@media (max-width:767px){.netmap3d-label .t{font-size:10px}.netmap3d-label .s{display:none}}
 .netmap-mono{font-family:var(--font-mono),'JetBrains Mono',monospace}
 .netmap-phase{font-size:10px;padding:1px 8px;border-radius:999px;border:1px solid #334155;color:#94A3B8;text-transform:uppercase;letter-spacing:.12em}
 .netmap-phase[data-p=vote],.netmap-phase[data-p=pulse]{border-color:#22C55E;color:#86EFAC}
