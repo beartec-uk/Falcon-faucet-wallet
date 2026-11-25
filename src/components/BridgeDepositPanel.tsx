@@ -54,10 +54,10 @@ import {
   listDeposits,
   postSignatures,
   signDepositorRequest,
-  STATE_LABEL,
-  TN4_MEMPOOL,
   type Tn4Deposit,
 } from '@/lib/tn4-bridge'
+import { operatorCapacityFromFeed } from '@/lib/btc-operator-capacity'
+import { tn4DepositStatusView } from '@/lib/tn4-deposit-status'
 import { signRailWithdraw } from '@/lib/pl-wallet-sign'
 import {
   BTC_DEPOSITS_ENABLED,
@@ -2457,26 +2457,7 @@ const handleSpvCompleteClaim = async () => {
         if (!r.ok) return
         const j = await r.json()
         if (cancelled) return
-        const ops = Array.isArray(j.operators) ? j.operators : []
-        const online = ops.filter((o: { online?: boolean }) => o.online !== false)
-        const active = online.length > 0 ? online : ops
-        const maxSats = active.reduce(
-          (m: number, o: { btc_available_sats?: number }) =>
-            Math.max(m, Number(o.btc_available_sats) || 0),
-          0,
-        )
-        const totSats =
-          Number(j.totals?.available_sats) ||
-          active.reduce(
-            (s: number, o: { btc_available_sats?: number }) =>
-              s + (Number(o.btc_available_sats) || 0),
-            0,
-          )
-        setTn4OpCap({
-          maxSingleBtc: maxSats / 1e8,
-          totalBtc: totSats / 1e8,
-          onlineCount: active.length,
-        })
+        setTn4OpCap(operatorCapacityFromFeed(j))
       } catch {
         /* ignore */
       }
@@ -2879,28 +2860,7 @@ const handleSpvCompleteClaim = async () => {
                 ))}
 
                 {activeTn4.map((d) => {
-                  const txid = d.peg_in_confirm_txid || d.funding?.split(':')[0] || ''
-                  const explorerHref = txid
-                    ? `${TN4_MEMPOOL}/tx/${txid}`
-                    : `${TN4_MEMPOOL}/address/${d.address}`
-                  const statusLine =
-                    d.state === 'awaiting_funding'
-                      ? 'Waiting for 1st Bitcoin confirmation'
-                      : d.state === 'funded' ||
-                          d.state === 'ceremony_pubkeys' ||
-                          d.state === 'waiting_operator_liquidity'
-                        ? 'Preparing deposit'
-                        : d.state === 'awaiting_signature'
-                          ? 'Ready to confirm'
-                          : d.state === 'signed' ||
-                              d.state === 'presigned' ||
-                              d.state === 'broadcasting'
-                            ? 'Confirming on Bitcoin'
-                            : d.state === 'peg_in_confirmed'
-                              ? `Confirming on Bitcoin (${d.confirmations ?? 1}/6)`
-                              : d.state === 'awaiting_mint'
-                                ? 'Minting FBTC on Falcon.'
-                                : 'Deposit in progress'
+                  const status = tn4DepositStatusView(d)
                   return (
                     <div
                       key={d.id}
@@ -2915,10 +2875,10 @@ const handleSpvCompleteClaim = async () => {
                           <p className="text-xs text-slate-500 mt-0.5">
                             Testnet4 deposit · started {new Date(d.created * 1000).toLocaleTimeString()}
                           </p>
-                          <p className="text-xs text-slate-500 mt-0.5">{statusLine}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{status.label}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {d.state === 'awaiting_signature' && (
+                          {status.showConfirmButton && (
                             <button
                               type="button"
                               onClick={() => void handleTn4SignDeposit(d)}
@@ -2937,17 +2897,17 @@ const handleSpvCompleteClaim = async () => {
                           </button>
                         </div>
                       </div>
-                      <a
-                        href={explorerHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block text-[11px] font-mono text-brand-400/90 hover:text-brand-300 truncate"
-                        title={txid || d.address}
-                      >
-                        {txid
-                          ? `${txid.slice(0, 10)}…${txid.slice(-8)}`
-                          : `${d.address.slice(0, 10)}…${d.address.slice(-8)}`}
-                      </a>
+                      {status.explorerHref && status.explorerLabel ? (
+                        <a
+                          href={status.explorerHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-[11px] font-mono text-brand-400/90 hover:text-brand-300 truncate"
+                          title={d.peg_in_confirm_txid ?? undefined}
+                        >
+                          {status.explorerLabel}
+                        </a>
+                      ) : null}
                     </div>
                   )
                 })}
