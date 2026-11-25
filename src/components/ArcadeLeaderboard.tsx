@@ -492,9 +492,9 @@ export default function ArcadeLeaderboard() {
                       {!e.legacyOnly && (
                         <span>Best {e.bestScore.toLocaleString()}</span>
                       )}
-                      <span>{e.playDays} days</span>
-                      <span>{e.runs} runs</span>
-                      <span>{e.claims} claims</span>
+                      <span>{e.playDays} {e.playDays === 1 ? 'day' : 'days'}</span>
+                      <span>{e.runs} {e.runs === 1 ? 'run' : 'runs'}</span>
+                      <span>{e.claims} {e.claims === 1 ? 'claim' : 'claims'}</span>
                     </div>
                   </div>
                 </li>

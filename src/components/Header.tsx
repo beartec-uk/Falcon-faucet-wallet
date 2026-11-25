@@ -233,7 +233,7 @@ function HeaderInner({
         sticky ? 'sticky top-0' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/"

@@ -398,7 +398,7 @@ export default function ArcadePage() {
           ) : (
             <Link
               href="/wallet"
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 font-medium"
+              className="hidden sm:inline-flex text-xs px-2.5 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 font-medium"
             >
               Wallet
             </Link>
