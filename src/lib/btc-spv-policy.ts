@@ -155,7 +155,7 @@ export function claimAllowedForDeposit(opts: {
     }
   }
   // Missing Falcon tip must not hard-block a confirmed Bitcoin deposit.
-  // PL 2300 claim proof used to pass null here and 409 forever.
+  // Falcon testnet claim proof used to pass null here and 409 forever.
   if (opts.falconTip == null) {
     return { ok: true, minConf, reorgBuffer: tier.reorgBuffer }
   }

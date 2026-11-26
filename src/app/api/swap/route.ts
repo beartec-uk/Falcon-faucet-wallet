@@ -3,8 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { resolveNetworkKey } from '@/lib/network-server'
 import { quoteSwap, getUsdcMarket } from '@/lib/swap/quote'
 import { resolveStableToken } from '@/lib/swap/token-config'
+import { retiredOnPl } from '@/lib/pl-retired'
 
 export async function GET(req: NextRequest) {
+  const retired = retiredOnPl(req)
+  if (retired) return retired
   const networkKey = resolveNetworkKey(req.nextUrl.searchParams.get('network'))
   const address = req.nextUrl.searchParams.get('address') ?? ''
   const direction = req.nextUrl.searchParams.get('direction') as

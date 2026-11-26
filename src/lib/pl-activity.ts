@@ -1,7 +1,7 @@
 // Copyright (c) BEARTEC. All Rights Reserved.
 // Proprietary and confidential. See LICENSE. Not licensed under any OSI licence.
 //
-// Falcon PL 2300 wallet Activity: account txs + order-book fills (limit fills and
+// Falcon testnet wallet Activity: account txs + order-book fills (limit fills and
 // AMM swaps) + open orders, as display-ready rows. Pure, no I/O, unit-tested.
 
 import { decimalsOf, toDecimalString } from '@/lib/explorer-api/amounts'

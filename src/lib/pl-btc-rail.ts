@@ -1,6 +1,6 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 /**
- * Falcon PL 2300 BTC rail — Bitcoin SPV only.
+ * Falcon testnet BTC rail — Bitcoin SPV only.
  *
  * Wait for the header-submitter to ingest the deposit block (+ min confs),
  * then mint with a real hash256 merkle proof and the raw Bitcoin tx.

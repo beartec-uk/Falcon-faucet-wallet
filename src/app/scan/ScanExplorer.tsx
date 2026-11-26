@@ -79,7 +79,7 @@ function TickerStrip({
         Commit <span className="text-slate-300 font-mono">{commit}</span>
       </span>
       <span>
-        Network <span className="text-slate-300">Falcon PL 2300</span>
+        Network <span className="text-slate-300">Falcon testnet</span>
       </span>
     </div>
   )
@@ -125,7 +125,7 @@ function SearchBar() {
       const r = await fetch(`/api/scan?account=${encodeURIComponent(q)}`, { signal: ctrl.signal })
       const d = (await r.json()) as Record<string, unknown>
       if (d.found === false || d.exists === false) {
-        setError('Account not found on Falcon PL 2300')
+        setError('Account not found on the Falcon testnet')
         setResult(null)
         return
       }
@@ -296,7 +296,7 @@ export default function ScanExplorer({
         />
       )}
 
-      <Header current="scan" subtitle="Falcon PL · 2300" />
+      <Header current="scan" subtitle="Falcon testnet" />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8 space-y-8">
         <Logo />
@@ -363,7 +363,7 @@ export default function ScanExplorer({
               Network overview
             </h2>
             <p className="text-[10px] text-slate-600 mb-3">
-              Falcon PL 2300 · Falcon Consensus · Falcon-512
+              Falcon testnet · Falcon Consensus · Falcon-512
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <ClickableStatCard label="Height" value={`#${fmtNum(mesh.height)}`} accent="text-brand-500" chartKey="height" onChart={openNet} />

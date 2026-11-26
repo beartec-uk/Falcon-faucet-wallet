@@ -134,7 +134,7 @@ export default function ArcadeLeaderboard() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-widest text-brand-400">
-            Falcon PL 2300 · Testnet Arcade
+            Falcon testnet · Testnet Arcade
           </div>
           <h2
             id="arcade-leaderboard-heading"

@@ -1,6 +1,6 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 /**
- * Falcon PL 2300 FalconQcBridge (STATUS SoT). Not Falcon Ledger 1001 collateral lock.
+ * Falcon testnet FalconQcBridge (STATUS SoT). Not Falcon Ledger 1001 collateral lock.
  * dest20 = sha256(lowercase PL account)[:20]
  */
 
@@ -91,7 +91,8 @@ export function dest20FromAccount(account: string): string {
 
 let cached: Pl2300BridgeConfig | null = null
 
-/** Live FalconQcBridge (STATUS SoT) — Bridge tab ready before /config fetch. */
+/** Live FalconQcBridge config (mirrors public/config/pl-2300-bridge.json) — Bridge tab ready
+ * before /config loads, and the peg-in target if that fetch fails: V3, never the frozen V1. */
 export const PL2300_BRIDGE_FALLBACK: Pl2300BridgeConfig = {
   version: 1,
   status: 'live',
@@ -111,6 +112,8 @@ export const PL2300_BRIDGE_FALLBACK: Pl2300BridgeConfig = {
     legacy_destlock: '0xdBF6855b00B78c047A729A21E13bfE5f4C991C05',
     legacy_qc_v2: '0x811854827627024B38926Ea9DCc0f88ACd5fB23e',
     legacy_verifier_v2: '0x2Cb70e9f082F2DF91E9A5e6E7C9DF6b8b11B4F80',
+    qc_v3: '0xEd4eE497F21a9255a59e87535FF2A6097592Cfd4',
+    pegin_v3: true,
     falcon_key_root: '0x04a9ad1908569884ff307f63291c592af16fe345fb471c22104d0c0717bcfd8a',
     start_height: 353110,
   },

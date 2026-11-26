@@ -13,7 +13,7 @@ export const revalidate = 300
 
 const STUB = `#!/usr/bin/env bash
 echo "Falcon PL operator kit is not published yet." >&2
-echo "See https://falcon-fpl.com/validator (public testnet 2300)." >&2
+echo "See https://falcon-fpl.com/validator (public Falcon testnet)." >&2
 exit 1
 `
 

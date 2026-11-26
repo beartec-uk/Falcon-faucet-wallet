@@ -8,6 +8,7 @@ import {
   serverRpcCall,
 } from '@/lib/network-server'
 import type { NetworkToken } from '@/lib/networks'
+import { retiredOnPl } from '@/lib/pl-retired'
 
 const ADDRESS_RE = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/
 
@@ -111,6 +112,8 @@ async function getTokenBalance(
 }
 
 export async function GET(req: NextRequest) {
+  const retired = retiredOnPl(req)
+  if (retired) return retired
   const address = req.nextUrl.searchParams.get('address') ?? ''
   const networkKey = resolveNetworkKey(req.nextUrl.searchParams.get('network'))
   const cfg = serverNetworkConfig(networkKey)

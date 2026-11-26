@@ -215,12 +215,11 @@ function FaucetPageInner({ initialWatcher }: { initialWatcher?: WatcherSnap | nu
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <ProductShell intensity={0.5} className="flex-1 min-h-0">
-      <Header current="faucet" subtitle="Falcon PL · 2300">
+      <Header current="faucet" subtitle="Falcon testnet">
         <StatusDot online={status.online} state={status.state} />
       </Header>
       <div className="bg-amber-950/50 border-b border-amber-800/40 px-4 py-2 text-center text-xs text-amber-200/90">
-        <span className="font-medium">Falcon PL</span>
-        {' · '}Network ID 2300
+        <span className="font-medium">Falcon testnet</span>
         {' · '}Pre-public beta — test tokens, no cash value
       </div>
 

@@ -1,6 +1,6 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 /**
- * Falcon PL 2300 public zero-point. Subtract baseline rail/account
+ * Falcon testnet public zero-point. Subtract baseline rail/account
  * credits so explorers and the wallet read 0 until new peg-ins.
  */
 

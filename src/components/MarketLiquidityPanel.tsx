@@ -174,7 +174,6 @@ export default function MarketLiquidityPanel({
     token.symbol,
     token.currency,
     token.issuer,
-    token.mptIssuanceId,
   ])
 
   const loadLpPosition = useCallback(async () => {

@@ -133,28 +133,8 @@ assert.deepEqual(m.map((p) => p.v), [0, 2])
 
 // Network map layout from config.
 const lay = await import(pathToFileURL(path.join(dir, 'netmap-layout.mjs')).href)
-const { NETWORK_MAP_CONFIG: cfg } = await import(pathToFileURL(path.join(dir, 'network-map.mjs')).href)
-const status = ['v1', 'v3', 'v6', 'v10', 'v11', 'v12', 'v13', 'falcon-node', 'scottspersonalnode', 'v99']
-  .map((id) => ({ id, online: true }))
-  .concat([{ id: 'v2', online: false }])
-const L = lay.layoutMap(cfg, status)
-assert.equal(L.hub.id, 'v11')
-assert.ok(!L.seats.some((s) => s.id === 'v11'), 'hub not duplicated in a group')
-assert.equal(L.seats.find((s) => s.id === 'v1').locationId, 'england')
-assert.equal(L.seats.find((s) => s.id === 'scottspersonalnode').locationId, 'helsinki')
-assert.equal(L.seats.find((s) => s.id === 'v12').confirmed, false, 'Hillsboro still TODO')
-assert.equal(L.seats.find((s) => s.id === 'v99').locationId, 'unplaced', 'unknown online seat shown')
-assert.ok(!L.seats.some((s) => s.id === 'v2'), 'unknown offline seat hidden by default')
-assert.equal(L.wallet.label, 'Wallet services')
-assert.deepEqual([L.wallet.pos[0], L.wallet.pos[2]], [L.hub.pos[0], L.hub.pos[2]])
-assert.ok(L.wallet.pos[1] > L.hub.pos[1] + 3, 'wallet services above the hub')
-const ids = L.seats.map((s) => s.id)
-assert.equal(new Set(ids).size, ids.length)
-for (let i = 0; i < L.seats.length; i++)
-  for (let j = i + 1; j < L.seats.length; j++) {
-    const a = L.seats[i].pos, b = L.seats[j].pos
-    assert.ok(Math.hypot(a[0] - b[0], a[2] - b[2]) > 1.2, `seats ${ids[i]} / ${ids[j]} overlap`)
-  }
+// The config-driven layoutMap() was replaced by the force mesh (buildMeshGraph /
+// solveForceMesh), which tests/netmap-layout.test.ts covers. Keep the ring helpers here.
 assert.equal(lay.bulgeCount(0, 10), 0)
 assert.equal(lay.bulgeCount(3, 10), 1)
 assert.equal(lay.bulgeCount(5000, 10), 10, 'bulges capped')

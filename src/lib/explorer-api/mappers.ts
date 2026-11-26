@@ -239,7 +239,7 @@ export function networkFromStatus(st: Obj) {
 // Order book (node v2.10.4 RPC: order_book_query / open_orders_query / fills_query)
 // ---------------------------------------------------------------------------
 
-/** Height at which the PL 2300 order book activates (TESTNET_2300_V2_10_4_FROM_HEIGHT). */
+/** Height at which the Falcon testnet order book activates (TESTNET_2300_V2_10_4_FROM_HEIGHT). */
 export const ORDERBOOK_ACTIVATION_HEIGHT = 800_000
 
 export function normalizePair(p: string): string | null {

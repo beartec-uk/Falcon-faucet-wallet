@@ -16,7 +16,7 @@ export const metadata: Metadata = pageMeta(
 export default function FeedbackPage() {
   return (
     <ProductShell intensity={0.4} className="bg-slate-950 text-slate-100">
-      <Header current="community" subtitle="Falcon PL · 2300" />
+      <Header current="community" subtitle="Falcon testnet" />
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-10 space-y-6">
         <section className="space-y-2">
           <div className="text-[11px] uppercase tracking-[0.3em]" style={{ color: '#D4922A' }}>Testnet</div>

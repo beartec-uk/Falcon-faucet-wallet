@@ -8,7 +8,7 @@ import PlOrderBookPro from '@/components/PlOrderBookPro'
 type Tab = 'swap' | 'pro'
 const KEY = 'falcon.swap.tab'
 
-/** Falcon PL 2300 swap page: simple AMM Swap, or Pro (on-ledger order book). */
+/** Falcon testnet swap page: simple AMM Swap, or Pro (on-ledger order book). */
 export default function Pl2300Trade({ embedded = false }: { embedded?: boolean }) {
   const [tab, setTab] = useState<Tab>('swap')
   useEffect(() => {

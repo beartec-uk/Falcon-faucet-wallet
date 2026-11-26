@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { resolveNetworkKey, serverRpcCall } from '@/lib/network-server'
 import { isDustOffer } from '@/lib/swap/dust-offers'
 import { resolveStableToken } from '@/lib/swap/token-config'
+import { retiredOnPl } from '@/lib/pl-retired'
 
 const DROPS = 1_000_000
 
@@ -58,6 +59,8 @@ function parseTokenPoolAmount(amount2: unknown, mpt: boolean): number {
 }
 
 export async function GET(req: NextRequest) {
+  const retired = retiredOnPl(req)
+  if (retired) return retired
   const networkKey = resolveNetworkKey(req.nextUrl.searchParams.get('network'))
   const token = await resolveStableToken({
     symbol: req.nextUrl.searchParams.get('symbol'),

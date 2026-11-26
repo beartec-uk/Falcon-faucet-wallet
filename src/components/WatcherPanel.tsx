@@ -2,7 +2,7 @@
 'use client'
 
 /**
- * Falcon PL 2300 watcher, signed by the user's own wallet in the browser.
+ * Falcon testnet watcher, signed by the user's own wallet in the browser.
  *
  * - Start: one passkey unlock, then a `watcher_heartbeat` per hour slot while
  *   the tab stays open (the decrypted key lives only in this tab's memory and
@@ -329,7 +329,7 @@ export default function WatcherPanel({ initial = null }: { initial?: WatcherSnap
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.16em] uppercase text-brand-400/90">
-            Pre-public beta · PL 2300
+            Pre-public beta · Falcon testnet
           </p>
           <h2 className="text-lg font-semibold text-white mt-1">Watcher &amp; claims</h2>
           <p className="text-slate-400 text-xs mt-1">
@@ -352,7 +352,7 @@ export default function WatcherPanel({ initial = null }: { initial?: WatcherSnap
 
       {!is2300 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          Watchers run on Falcon PL 2300. Switch network to use them.
+          Watchers run on the Falcon testnet. Switch network to use them.
         </div>
       )}
       {walletLoaded && !wallet && (

@@ -18,7 +18,7 @@ import {
   type MeshNode,
   type PropagationHop,
 } from '@/lib/netmap-layout'
-import { BRIDGE_OPERATORS } from '@/lib/bridge-operators'
+import { useBridgeOperators } from '@/lib/bridge-operators'
 
 export interface PeerMeshProps {
   graph: MeshGraph
@@ -123,6 +123,8 @@ export default function PeerMeshCanvas({
   tps,
   isMobile = false,
 }: PeerMeshProps) {
+  const bridgeOps = useBridgeOperators()
+  const liveOps = bridgeOps.filter((o) => o.live).length
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const reducedMotion = useReducedMotion()
@@ -883,13 +885,13 @@ export default function PeerMeshCanvas({
         <div className="netmap-watch" style={{ borderColor: 'rgba(56, 189, 248, 0.45)' }}>
           <span
             className="netmap-watch-dot"
-            style={{ background: BRIDGE_OPERATORS.length ? '#38BDF8' : '#475569' }}
+            style={{ background: liveOps ? '#38BDF8' : '#475569' }}
           />
-          {BRIDGE_OPERATORS.length
-            ? `bridge ops ${BRIDGE_OPERATORS.length}`
+          {bridgeOps.length
+            ? `bridge ops ${liveOps}/${bridgeOps.length}`
             : isMobile
-              ? 'bridge · soon'
-              : 'BTC bridge operators · coming soon'}
+              ? 'bridge · …'
+              : 'BTC bridge operators · connecting…'}
         </div>
       </div>
 

@@ -6,7 +6,7 @@ import NetworkMapClient from '@/components/netmap/NetworkMapClient'
 export const metadata: Metadata = pageMeta(
   '/scan/map',
   'Live network map',
-  'Live organic peer-to-peer mesh map of the Falcon PL 2300 network.',
+  'Live organic peer-to-peer mesh map of the Falcon testnet.',
 )
 
 export default function NetworkMapPage() {

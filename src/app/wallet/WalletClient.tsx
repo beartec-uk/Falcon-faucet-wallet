@@ -204,7 +204,7 @@ interface TxRecord {
   result:       string
   date?:        number
   height?:      number
-  /** PL 2300 display overrides (fills, swaps, orders, other tx kinds). */
+  /** Falcon testnet display overrides (fills, swaps, orders, other tx kinds). */
   label?:       string
   party?:       string | null
   direction?:   'in' | 'out' | 'trade'
@@ -551,7 +551,7 @@ export default function WalletPage() {
       const [accR, assetsR, lendR] = await Promise.all([
         fetch(withNetworkQuery(`/api/wallet/account?address=${encodeURIComponent(address)}`, networkKey), fetchOpts),
         fetch(withNetworkQuery(`/api/wallet/assets?address=${encodeURIComponent(address)}`, networkKey), fetchOpts),
-        // XRPL-era lending overview is retired (410) on Falcon PL 2300; PL lend reads come from /api/pl2300/defi.
+        // XRPL-era lending overview is retired (410) on Falcon testnet; PL lend reads come from /api/pl2300/defi.
         network.networkId === 2300
           ? Promise.resolve(new Response(null, { status: 410 }))
           : fetch(withNetworkQuery(`/api/lend/overview?address=${encodeURIComponent(address)}`, networkKey), fetchOpts),
@@ -809,6 +809,7 @@ export default function WalletPage() {
     return () => {
       cancelled = true
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: keyed on the listed values only; the omitted props/derived values are stable per wallet or would re-fire the poll every render
   }, [
     view,
     wallet,
@@ -1682,6 +1683,7 @@ export default function WalletPage() {
         btcOnChainLinkRef.current = 'deferred'
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: keyed on the listed values only; the omitted props/derived values are stable per wallet or would re-fire the poll every render
     [wallet, account?.externalAddrs?.btc, network.networkId, networkKey, refreshBalance],
   )
 
@@ -2160,7 +2162,7 @@ export default function WalletPage() {
         setError('Insufficient FBNB balance'); return
       }
     } else if (sendAsset === 'fbtc') {
-      // PL 2300 FBTC is the bridged BTC balance. Older networks used an MPT/IOU.
+      // Falcon testnet FBTC is the bridged BTC balance. Older networks used an MPT/IOU.
       if (network.networkId !== 2300 && !fbtcTok?.spvMpt && (!fbtcTok?.issuer || fbtcTok.hasTrustLine === false)) {
         setError(
           fbtcTok?.spvMpt === false

@@ -216,7 +216,7 @@ export interface SpvStatus {
     instanceSats?: number | null
     maxSats?: number | null
   }
-  /** FPL 2300: "bitcoin" after the header submitter reanchors. */
+  /** Falcon testnet: "bitcoin" after the header submitter reanchors. */
   spv?: string
   mode?: string
   /** W1.5 header lag monitoring */

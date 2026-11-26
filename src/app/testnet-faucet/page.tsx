@@ -12,7 +12,7 @@ export default function TestnetFaucetPage() {
   return (
     <ContentPage current="faucet" title="FPL testnet faucet" back={{ href: '/faucet', label: 'Faucet' }}>
       <p>
-        The Falcon PL faucet gives free test FPL on testnet 2300 so you can try a post-quantum (Falcon-512)
+        The Falcon PL faucet gives free test FPL on the Falcon testnet so you can try a post-quantum (Falcon-512)
         wallet. Testnet FPL has no cash value.
       </p>
       <Section title="How to get test FPL">

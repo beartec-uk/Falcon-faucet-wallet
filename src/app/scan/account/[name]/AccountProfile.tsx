@@ -68,7 +68,7 @@ export default function AccountProfile({ name }: { name: string }) {
 
   return (
     <ProductShell intensity={0.4} className="bg-slate-950 text-slate-100">
-      <Header current="scan" subtitle="Falcon PL · 2300" />
+      <Header current="scan" subtitle="Falcon testnet" />
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 space-y-5">
         <div className="flex flex-wrap items-baseline gap-3">
           <Link href="/airdrop" className="text-xs text-slate-500 hover:text-slate-300">← Airdrop &amp; Leaderboards</Link>

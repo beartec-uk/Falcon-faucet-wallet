@@ -2,7 +2,7 @@
 'use client'
 
 /**
- * Falcon PL 2300 "Pro" trading: on-ledger order book (fd-pl 2.10.4).
+ * Falcon testnet "Pro" trading: on-ledger order book (fd-pl 2.10.4).
  * Ladder + recent trades from /api/v1/explorer/orderbook/[pair](/trades), account orders/fills,
  * and a limit / market order form that signs PlaceLimitOrder / CancelOrder / SwapRoute in the browser.
  */

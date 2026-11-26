@@ -14,12 +14,12 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mon
 const NETWORK = process.env.NEXT_PUBLIC_TESTNET_NAME ?? 'Falcon PL'
 
 const HOME_DESCRIPTION =
-  'Falcon PL: a quantum-safe participation ledger with Falcon-512 signatures from genesis. Testnet 2300 wallet, faucet and explorer are live.'
+  'Falcon PL: a quantum-safe participation ledger with Falcon-512 signatures from genesis. Falcon testnet wallet, faucet and explorer are live.'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${NETWORK} — Quantum-safe participation ledger (testnet 2300)`,
+    default: `${NETWORK} — Quantum-safe participation ledger (Falcon testnet)`,
     template: `%s · ${SITE_NAME}`,
   },
   description: HOME_DESCRIPTION,
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: `${NETWORK}`,
     description:
-      'Quantum-safe participation ledger. Pre-public testnet 2300. Test tokens have no cash value.',
+      'Quantum-safe participation ledger. Pre-public Falcon testnet. Test tokens have no cash value.',
     url: '/',
     type: 'website',
     siteName: SITE_NAME,

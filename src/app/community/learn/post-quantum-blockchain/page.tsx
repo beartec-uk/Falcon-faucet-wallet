@@ -29,7 +29,7 @@ export default function PostQuantumBlockchainPage() {
           accounts to migrate. The site wallet signs in your browser and is passkey secured.
         </p>
       </Section>
-      <Section title="Try it on testnet 2300">
+      <Section title="Try it on the Falcon testnet">
         <ul className="list-disc pl-5 space-y-1">
           <li>Create a wallet: <A href="/wallet">Wallet</A></li>
           <li>Get test FPL: <A href="/testnet-faucet">Testnet faucet</A></li>

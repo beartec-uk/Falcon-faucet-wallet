@@ -20,7 +20,7 @@ import type { Round } from '@/lib/netmap-consensus'
 import { phaseAt } from '@/lib/netmap-consensus'
 import { bulgeCount, propagationPlan, ringFill, votePaths, type MeshEdge, type MeshNode } from '@/lib/netmap-layout'
 import { DEFAULT_LAYOUT_RADIUS, linkControlPoint, quadBezier3, solveForceMesh3D, type Vec3 } from '@/lib/netmap-layout3d'
-import { BRIDGE_OPERATORS } from '@/lib/bridge-operators'
+import { useBridgeOperators } from '@/lib/bridge-operators'
 
 const Effects = lazy(() => import('@/components/netmap/PeerMesh3DEffects'))
 
@@ -663,6 +663,8 @@ function CameraRig({
 }
 
 export default function PeerMesh3D(props: PeerMesh3DProps) {
+  const bridgeOps = useBridgeOperators()
+  const liveOps = bridgeOps.filter((o) => o.live).length
   const {
     graph,
     event,
@@ -935,12 +937,12 @@ export default function PeerMesh3D(props: PeerMesh3DProps) {
           watchers {liveWatchers}/{epochWatchers}
         </div>
         <div className="netmap-watch" style={{ borderColor: 'rgba(56, 189, 248, 0.45)' }}>
-          <span className="netmap-watch-dot" style={{ background: BRIDGE_OPERATORS.length ? '#38BDF8' : '#475569' }} />
-          {BRIDGE_OPERATORS.length
-            ? `bridge ops ${BRIDGE_OPERATORS.length}`
+          <span className="netmap-watch-dot" style={{ background: liveOps ? '#38BDF8' : '#475569' }} />
+          {bridgeOps.length
+            ? `bridge ops ${liveOps}/${bridgeOps.length}`
             : isMobile
-              ? 'bridge · soon'
-              : 'BTC bridge operators · coming soon'}
+              ? 'bridge · …'
+              : 'BTC bridge operators · connecting…'}
         </div>
       </div>
 

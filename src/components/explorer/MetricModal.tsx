@@ -79,7 +79,7 @@ export default function MetricModal({
   const opt = options?.find((o) => o.key === key)
   const label = opt?.label ?? title ?? seriesLabel(key)
   const cur = opt ? opt.current : current
-  const srv = server?.series?.[key] ?? []
+  const srv = useMemo(() => server?.series?.[key] ?? [], [server, key])
   const cli = getClientSeries(key)
   const stats = useMemo(() => {
     const all = mergeSeries(srv, cli)

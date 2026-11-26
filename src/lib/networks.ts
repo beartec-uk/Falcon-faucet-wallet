@@ -84,7 +84,7 @@ export function envNumberFirst(names: readonly string[], fallback: number): numb
   return fallback
 }
 
-/** Public testnet is Falcon PL 2300. Retired 1001 / 2200 env pins must not win. */
+/** Public testnet is Falcon testnet. Retired 1001 / 2200 env pins must not win. */
 function envTestnetNetworkId(): number {
   const n = envInt('NEXT_PUBLIC_TESTNET_NETWORK_ID', 2300)
   if (n === 1001 || n === 2200) return 2300
@@ -116,7 +116,7 @@ const TESTNET_DRIP_FPL = envNumberFirst(
 
 const TESTNET: NetworkConfig = {
   key: 'testnet',
-  name: envStr('NEXT_PUBLIC_TESTNET_NAME', 'Falcon PL 2300'),
+  name: envStr('NEXT_PUBLIC_TESTNET_NAME', 'Falcon testnet'),
   shortName: 'Testnet',
   networkId: envTestnetNetworkId(),
   rpcUrl: envStr(

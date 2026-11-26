@@ -25,6 +25,8 @@ import {
   routeLabel,
 } from '@/lib/pl-swap-quote'
 
+import { poolPrice, priceFor } from '@/lib/pl-lend-price'
+
 type Asset = 'FPL' | 'BTC4' | 'ETH' | 'USDC'
 const ASSETS: Asset[] = ['FPL', 'USDC', 'ETH', 'BTC4']
 
@@ -279,38 +281,6 @@ function coinToShares(raw: string, totalSupply: string, shareSupply: string, hav
   if (want === 0n) throw new Error('Amount is too small to withdraw')
   if (want > have) throw new Error('That is more than you have supplied')
   return want.toString()
-}
-
-/** FPL for one whole coin, from the pool reserves. */
-function poolPrice(p: Pool): { asset: Asset; price: string } | null {
-  const a = p.asset_a as Asset
-  const b = p.asset_b as Asset
-  let fpl = ''
-  let other = ''
-  let asset: Asset | null = null
-  if (a === 'FPL' && b in DECIMALS && b !== 'FPL') {
-    fpl = p.reserve_a
-    other = p.reserve_b
-    asset = b
-  } else if (b === 'FPL' && a in DECIMALS && a !== 'FPL') {
-    fpl = p.reserve_b
-    other = p.reserve_a
-    asset = a
-  }
-  if (!asset || other === '0') return null
-  const px = (BigInt(fpl) * 10n ** BigInt(DECIMALS[asset])) / BigInt(other)
-  if (px <= 0n) return null
-  return { asset, price: px.toString() }
-}
-
-function priceFor(markets: Market[], pools: Pool[], asset: Asset): string {
-  const m = markets.find((x) => x.asset === asset && x.price_fpl !== '0')
-  if (m) return m.price_fpl
-  for (const p of pools) {
-    const q = poolPrice(p)
-    if (q && q.asset === asset) return q.price
-  }
-  return '0'
 }
 
 function maxBorrowRaw(asset: Asset, fplSpend: bigint, priceFpl: string, ltvBps: number): bigint {

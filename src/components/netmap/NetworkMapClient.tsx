@@ -300,7 +300,7 @@ export default function NetworkMapClient() {
         <Legend c="#FFC060" t="Block propagation wave across peer edges" dot />
         <Legend c="#4ADE80" t="Vote pulse along peer edges → packer" dot />
         <Legend c="#F5E7C8" t="Watchers (bright = live this slot)" dot />
-        <Legend c="#38BDF8" t="BTC bridge operators (coming soon)" dot />
+        <Legend c="#38BDF8" t="BTC bridge operators (Testnet4 BitVM2)" dot />
       </div>
 
       <div className="rounded-xl border border-slate-800 p-3 text-xs min-h-[110px]">

@@ -2,6 +2,10 @@
 /**
  * Verify client-side Falcon signing matches xrpld acceptance.
  * Run: node scripts/verify-falcon-sign.mjs
+ *
+ * Always checks a local Falcon-512 sign/verify round trip. The submit check targets a
+ * legacy xrpld (network 1001, retired) and only runs when XRPLD_RPC_URL is set; the old
+ * default node (46.224.0.140:6005) is gone, so without it the network step is skipped.
  */
 import { createFalcon512 } from '@openforge-sh/liboqs/sig'
 import { encodeForSigning, encode } from 'ripple-binary-codec'
@@ -9,7 +13,7 @@ import { createHash } from 'crypto'
 import { encodeAccountID } from 'ripple-address-codec'
 
 const FALCON512_PREFIX = 0xfb
-const RPC = process.env.XRPLD_RPC_URL ?? 'http://46.224.0.140:6005'
+const RPC = process.env.XRPLD_RPC_URL?.trim() || ''
 
 function addrFromPub(pubBlob) {
   const sha = createHash('sha256').update(pubBlob).digest()
@@ -50,16 +54,26 @@ const signature = sig.sign(new Uint8Array(signingBytes), secretKey)
 const ok = sig.verify(signingBytes, signature, publicKey)
 const blob = encode({ ...tx, TxnSignature: Buffer.from(signature).toString('hex').toUpperCase() })
 
+if (!ok) {
+  console.error('Local Falcon-512 verify failed')
+  process.exit(1)
+}
+if (!RPC) {
+  console.log(JSON.stringify({ verify: ok, submit: 'skipped (set XRPLD_RPC_URL to submit to a legacy xrpld)', address }, null, 2))
+  sig.destroy()
+  process.exit(0)
+}
+
 const res = await fetch(RPC, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ method: 'submit', params: [{ tx_blob: blob }] }),
+  signal: AbortSignal.timeout(15_000),
 })
 const out = await res.json()
 const result = out.result?.engine_result
 
 console.log(JSON.stringify({ verify: ok, submit: result, address }, null, 2))
-if (!ok) process.exit(1)
 if (result !== 'terNO_ACCOUNT') {
   console.error('Expected terNO_ACCOUNT (valid sig, unfunded account)')
   process.exit(1)

@@ -63,6 +63,7 @@ function CrossfadeImage({ src, alt, reduced }: { src: string; alt: string; reduc
       {layers.map((l, i) => {
         const top = i === layers.length - 1;
         return (
+          // eslint-disable-next-line @next/next/no-img-element -- Shopify CDN product shots, already sized by the Storefront API; next/image would need remotePatterns + re-encode
           <img
             key={l.id}
             src={l.src}
@@ -131,7 +132,7 @@ export default function ShopFront({ theme }: { theme: ShopTheme }) {
   }, [catalogue]);
 
   const category = categories[Math.min(catIdx, categories.length - 1)];
-  const products: ShopProduct[] = category?.products ?? [];
+  const products: ShopProduct[] = useMemo(() => category?.products ?? [], [category]);
   const product: ShopProduct | undefined = products[Math.min(prodIdx, products.length - 1)];
   const colour = product?.colours[Math.min(colourIdx, Math.max(0, product.colours.length - 1))];
   const needsSize = (product?.sizes.length ?? 0) > 0;
@@ -413,6 +414,7 @@ export default function ShopFront({ theme }: { theme: ShopTheme }) {
     >
       <header className="sf-header">
         <a className="sf-brand" href={theme.homeHref} aria-label={`${theme.brand} home`}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- Shopify CDN product shots, already sized by the Storefront API; next/image would need remotePatterns + re-encode */}
           <img
             src={theme.logo.src}
             alt={theme.logo.alt}
@@ -686,6 +688,7 @@ export default function ShopFront({ theme }: { theme: ShopTheme }) {
               <ul className="sf-lines">
                 {basket.lines.map((l) => (
                   <li key={l.variantId} className="sf-line">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- Shopify CDN product shots, already sized by the Storefront API; next/image would need remotePatterns + re-encode */}
                     <img src={l.image} alt="" loading="lazy" />
                     <div className="sf-line-info">
                       <strong>{l.productTitle}</strong>

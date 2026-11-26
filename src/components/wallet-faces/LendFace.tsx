@@ -70,7 +70,7 @@ export default function LendPage() {
   const [notice, setNotice] = useState<string | null>(null)
 
   const refresh = useCallback(async (address?: string) => {
-    // Falcon PL 2300 reads markets from the chain in <PlFplMarkets />; the
+    // Falcon testnet reads markets from the chain in <PlFplMarkets />; the
     // XRPL lend backend is retired there, so skip it.
     if (network.networkId === 2300) return
     const base = address
