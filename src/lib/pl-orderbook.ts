@@ -1,6 +1,8 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
+import { fAssetLabel } from '@/lib/f-asset-label'
+
 /**
- * Falcon PL 2300 on-ledger order book (fd-pl 2.10.4, crates/fd-pl/src/orderbook.rs) — pure helpers.
+ * Falcon testnet on-ledger order book (fd-pl 2.10.4, crates/fd-pl/src/orderbook.rs) — pure helpers.
  * Prices are FPL raw per one whole coin; amounts are base-asset raw units.
  */
 
@@ -20,10 +22,7 @@ export function pairOf(asset: BookAsset): string {
 }
 
 export function bookAssetLabel(asset: string): string {
-  if (asset === 'USDC') return 'fUSDC'
-  if (asset === 'ETH') return 'fETH'
-  if (asset === 'BTC4') return 'fBTC'
-  return asset
+  return fAssetLabel(asset)
 }
 
 export function pairScale(asset: BookAsset): bigint {

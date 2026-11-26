@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       const tokens: Array<Record<string, unknown>> = []
       if (btc) {
         tokens.push({
-          symbol: 'FBTC',
+          symbol: 'fBTC',
           currency: 'BTC4',
           issuer: '',
           balance: btc / 1e8,
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       }
       if (eth) {
         tokens.push({
-          symbol: 'FETH',
+          symbol: 'fETH',
           currency: 'ETH',
           issuer: '',
           balance: eth / 1e18,
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
       }
       if (usdc) {
         tokens.push({
-          symbol: 'F-USDC',
+          symbol: 'fUSDC',
           currency: 'USDC',
           issuer: '',
           balance: usdc / 1e6,
@@ -78,9 +78,9 @@ export async function GET(req: NextRequest) {
         address,
         network: networkKey,
         assets: {
-          fusdc: { symbol: 'F-USDC', balance: usdc / 1e6, currency: 'USDC', issuer: '', hasTrustLine: true },
+          fusdc: { symbol: 'fUSDC', balance: usdc / 1e6, currency: 'USDC', issuer: '', hasTrustLine: true },
           fbtc: {
-            symbol: 'FBTC',
+            symbol: 'fBTC',
             balance: btc / 1e8,
             currency: 'BTC4',
             issuer: '',
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
           },
           BTC: 0,
           BTC4: btc,
-          feth: { symbol: 'FETH', balance: eth / 1e18, currency: 'ETH', issuer: '', hasTrustLine: true },
+          feth: { symbol: 'fETH', balance: eth / 1e18, currency: 'ETH', issuer: '', hasTrustLine: true },
           tokens,
         },
       })

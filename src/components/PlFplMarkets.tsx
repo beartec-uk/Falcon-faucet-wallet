@@ -17,6 +17,7 @@ import {
 } from '@/lib/pl-wallet-sign'
 import { fetchSequenceInfo } from '@/lib/wallet-submit'
 import { explainTxError } from '@/lib/pl-key-commit'
+import { fAssetLabel } from '@/lib/f-asset-label'
 
 type Asset = 'FPL' | 'BTC4' | 'ETH' | 'USDC'
 const ASSETS: Asset[] = ['FPL', 'USDC', 'ETH', 'BTC4']
@@ -69,10 +70,7 @@ function toRaw(asset: Asset, human: string): string {
 }
 
 function assetLabel(asset: Asset): string {
-  if (asset === 'USDC') return 'fUSDC'
-  if (asset === 'ETH') return 'fETH'
-  if (asset === 'BTC4') return 'fBTC'
-  return 'FPL'
+  return fAssetLabel(asset)
 }
 
 /** Markets the pool page always offers. The amount box follows this selection. */
@@ -1295,6 +1293,9 @@ export default function PlFplMarkets({ mode }: { mode: 'swap' | 'pool' | 'lend' 
             </label>
           </div>
           <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" placeholder={`Amount of ${assetLabel(sell)}`} value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <p className="text-xs text-slate-400">
+            You can swap any f-asset for any other f-asset (fETH, fUSDC, fBTC, or FPL). A swap between two f-assets goes through FPL in one step.
+          </p>
           <p className="text-xs text-slate-400">
             Quote: {quoted > 0n ? fromRaw(buy, quoted.toString()) : '—'} {assetLabel(buy)}
             {sell !== 'FPL' && buy !== 'FPL' ? ' via FPL' : ''}

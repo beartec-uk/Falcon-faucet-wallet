@@ -273,7 +273,7 @@ export function planVaultWithdraw(
   if (want > total) {
     throw new Error(
       `Not enough vault BTC on this device (${total} sats available, need ${want}). ` +
-        'Only vault-backed FBTC can exit through the vault path.',
+        'Only vault-backed fBTC can exit through the vault path.',
     )
   }
 

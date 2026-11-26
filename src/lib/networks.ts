@@ -128,7 +128,7 @@ const TESTNET: NetworkConfig = {
   explorerUrl: envStr('NEXT_PUBLIC_TESTNET_EXPLORER_URL', envStr('NEXT_PUBLIC_EXPLORER_URL', '')),
   tokens: [
     {
-      symbol: 'F-USDC',
+      symbol: 'fUSDC',
       currency: envStr('NEXT_PUBLIC_TESTNET_USDC_CURRENCY', envStr('NEXT_PUBLIC_QUSDC_CURRENCY', 'QUC')),
       issuer: envStr('NEXT_PUBLIC_TESTNET_USDC_ISSUER', envStr('NEXT_PUBLIC_QUSDC_ISSUER', '')),
     },

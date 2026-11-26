@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 /**
  * Wallet catalogs:
- * - Falcon Wallet = native FPL + Falcon IOUs (F-USDC, FETH, FBTC, FBNB)
+ * - Falcon Wallet = native FPL + Falcon f-assets (fUSDC, fETH, fBTC, fBNB)
  * - Multi-chain = native deposit rows (ETH, USDC, BTC, BNB, classic XRP)
  *   USDC is its own row (Ethereum USDC), not nested under ETH.
  *   XRP is today’s XRPL (secp/ed25519) — separate r… from Falcon-512.
@@ -41,7 +41,7 @@ export const FALCON_WALLET_ASSETS: FalconAssetDef[] = [
   },
   {
     id: 'fusdc',
-    symbol: 'F-USDC',
+    symbol: 'fUSDC',
     subtitle: 'Bridged USDC on Falcon (via Bridge ← ETH wallet)',
     status: 'live',
     canSend: true,
@@ -51,7 +51,7 @@ export const FALCON_WALLET_ASSETS: FalconAssetDef[] = [
   },
   {
     id: 'feth',
-    symbol: 'FETH',
+    symbol: 'fETH',
     subtitle: 'Bridged ETH on Falcon (via Bridge ← wrap ETH → lock WETH)',
     status: 'live',
     canSend: true,
@@ -61,8 +61,8 @@ export const FALCON_WALLET_ASSETS: FalconAssetDef[] = [
   },
   {
     id: 'fbtc',
-    symbol: 'FBTC',
-    subtitle: 'Bridged BTC on Falcon (SPV light client · multi-chain BTC → FBTC)',
+    symbol: 'fBTC',
+    subtitle: 'Bridged BTC on Falcon (SPV light client · multi-chain BTC → fBTC)',
     status: 'live',
     canSend: true,
     canReceive: true,
@@ -71,7 +71,7 @@ export const FALCON_WALLET_ASSETS: FalconAssetDef[] = [
   },
   {
     id: 'fbnb',
-    symbol: 'FBNB',
+    symbol: 'fBNB',
     subtitle: 'Not a public dest-lock product',
     status: 'live',
     canSend: true,
@@ -105,7 +105,7 @@ export const NATIVE_CHAIN_WALLETS: NativeChainWalletDef[] = [
     id: 'eth',
     symbol: 'ETH',
     chainLabel: 'Ethereum',
-    subtitle: 'Native ETH · gas & deposit · Bridge → FETH',
+    subtitle: 'Native ETH · gas & deposit · Bridge → fETH',
     status: 'live',
     canSend: true,
     canReceive: true,
@@ -115,7 +115,7 @@ export const NATIVE_CHAIN_WALLETS: NativeChainWalletDef[] = [
     id: 'usdc',
     symbol: 'USDC',
     chainLabel: 'Ethereum',
-    subtitle: 'USDC on Ethereum · same 0x as ETH · Bridge → F-USDC',
+    subtitle: 'USDC on Ethereum · same 0x as ETH · Bridge → fUSDC',
     status: 'live',
     sharesEthKey: true,
     isToken: true,
@@ -127,7 +127,7 @@ export const NATIVE_CHAIN_WALLETS: NativeChainWalletDef[] = [
     id: 'btc',
     symbol: 'BTC',
     chainLabel: 'Bitcoin',
-    subtitle: 'Native BTC · testnet P2PKH · SPV Bridge → FBTC',
+    subtitle: 'Native BTC · testnet P2PKH · SPV Bridge → fBTC',
     status: 'live',
     canSend: true,
     canReceive: true,

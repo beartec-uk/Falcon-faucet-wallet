@@ -217,7 +217,7 @@ export async function getUsdcMarket(
   const display =
     token.displaySymbol ||
     token.symbol ||
-    (token.currency === 'QUC' ? 'F-USDC' : token.currency)
+    (token.currency === 'QUC' ? 'fUSDC' : token.currency)
 
   let userBalance: { balance: number; limit: number } | null = null
   if (address) {

@@ -67,7 +67,7 @@ export function LendProtocolBanner({ data }: { data: LendOverview | null }) {
             ? protocol.lendingPermissionless && protocol.lendingCollateral
               ? 'Supply, permissionless borrow (FPL collateral, 150% HF), add collateral, claim, repay, and on-chain liquidation (LoanManage + HF monitor) are wired.'
               : 'Supply and claim work from the portal. Borrow needs LendingPermissionless + LendingCollateral on-chain (broker co-sign removed).'
-            : 'Run bootstrap-testnet-lending.py on the coordinator to create the F-USDC vault and loan broker.'}
+            : 'Run bootstrap-testnet-lending.py on the coordinator to create the fUSDC vault and loan broker.'}
         </p>
       </div>
     )
@@ -331,13 +331,13 @@ function BorrowLoanCard({
             <div className="bg-slate-950/60 rounded-lg px-3 py-2">
               <div className="text-slate-500">Interest + fees (this installment)</div>
               <div className="font-mono text-slate-200 mt-0.5">
-                {interestFees != null ? `${fmt(interestFees, 6)} F-USDC` : '—'}
+                {interestFees != null ? `${fmt(interestFees, 6)} fUSDC` : '—'}
               </div>
             </div>
             <div className="bg-slate-950/60 rounded-lg px-3 py-2 col-span-2">
               <div className="text-slate-500">Your F-USDC balance</div>
               <div className="font-mono text-emerald-300 mt-0.5">
-                {walletFusdc != null ? `${fmt(walletFusdc, 4)} F-USDC` : '—'}
+                {walletFusdc != null ? `${fmt(walletFusdc, 4)} fUSDC` : '—'}
               </div>
             </div>
           </div>
@@ -358,7 +358,7 @@ function BorrowLoanCard({
             disabled={!!repayDisabledReason}
             className="w-full rounded-lg bg-brand-500 hover:bg-brand-400 text-slate-950 px-4 py-3 text-sm font-semibold disabled:opacity-50"
           >
-            {busy ? 'Signing…' : `Pay full amount · ${payFullAmount} F-USDC`}
+            {busy ? 'Signing…' : `Pay full amount · ${payFullAmount} fUSDC`}
           </button>
           {repayDisabledReason && (
             <p className="text-xs text-amber-300">{repayDisabledReason}</p>
@@ -487,7 +487,7 @@ export function LendPoolOverviewPanel({
                     <div className="text-slate-500">Debt cap</div>
                     <div className="font-mono text-slate-200">
                       {pool.borrow.debtMaximumFusdc != null
-                        ? `${fmt(pool.borrow.debtMaximumFusdc, 0)} F-USDC`
+                        ? `${fmt(pool.borrow.debtMaximumFusdc, 0)} fUSDC`
                         : '—'}
                     </div>
                   </div>
@@ -637,7 +637,7 @@ export function LendPoolOverviewPanel({
               <div className="text-slate-500">F-USDC available to supply</div>
               <div className="font-mono text-slate-200">
                 {data?.wallet?.hasFusdcTrustLine
-                  ? `${fmt(data.wallet.fusdcBalance, 2)} F-USDC`
+                  ? `${fmt(data.wallet.fusdcBalance, 2)} fUSDC`
                   : 'No trust line — add via Bridge or Swap'}
               </div>
             </div>
@@ -656,7 +656,7 @@ export function LendPoolOverviewPanel({
                 <div>
                   <div className="text-slate-500">Supplied</div>
                   <div className="font-mono text-slate-200">
-                    {position.depositedFusdc != null ? `${fmt(position.depositedFusdc, 2)} F-USDC` : '—'}
+                    {position.depositedFusdc != null ? `${fmt(position.depositedFusdc, 2)} fUSDC` : '—'}
                   </div>
                 </div>
                 <div>
@@ -997,7 +997,7 @@ export function LendBorrowPanel({
         {data?.wallet?.falconBalance != null && (
           <span className="text-[10px] text-slate-600 mt-1 block">
             Wallet: {fmt(data.wallet.falconBalance, 4)} FPL
-            {falconPerFusdc ? ` · AMM ≈ ${fmt(falconPerFusdc, 6)} F-USDC/FPL` : ''}
+            {falconPerFusdc ? ` · AMM ≈ ${fmt(falconPerFusdc, 6)} fUSDC/FPL` : ''}
           </span>
         )}
       </label>
@@ -1013,7 +1013,7 @@ export function LendBorrowPanel({
             <span className="text-slate-500">Collateral value</span>
             <span className="font-mono text-slate-200">
               {preview.collateralValueFusdc != null
-                ? `${fmt(preview.collateralValueFusdc, 2)} F-USDC`
+                ? `${fmt(preview.collateralValueFusdc, 2)} fUSDC`
                 : '—'}
             </span>
           </div>
@@ -1206,7 +1206,7 @@ export function LendPositionsPanel({
         <input
           type="text"
           inputMode="decimal"
-          placeholder={maxWithdraw ? `Max ${maxWithdraw} F-USDC` : 'Withdraw F-USDC'}
+          placeholder={maxWithdraw ? `Max ${maxWithdraw} fUSDC` : 'Withdraw fUSDC'}
           value={withdrawAmt}
           onChange={(e) => setWithdrawAmt(e.target.value)}
           disabled={!ready || busy || !lp?.shareBalance}
@@ -1240,9 +1240,9 @@ export function LendPositionsPanel({
         {busy
           ? 'Signing…'
           : isPartialWithdraw && effectiveWithdraw
-            ? `Withdraw · ${effectiveWithdraw} F-USDC`
+            ? `Withdraw · ${effectiveWithdraw} fUSDC`
             : maxWithdraw
-              ? `Withdraw all · ${maxWithdraw} F-USDC`
+              ? `Withdraw all · ${maxWithdraw} fUSDC`
               : 'Withdraw supply'}
       </button>
       {normalizedWithdraw &&

@@ -529,7 +529,7 @@ export default function MarketLiquidityPanel({
               You set the initial price (ratio of the two amounts). Creating the pool costs a one-time{' '}
               ~{fmt(parseInt(AMM_CREATE_FEE_DROPS, 10) / DROPS_PER_XRP, 0)} FPL ledger fee on top of your deposit.
               {(token.kind === 'mpt' || token.mptIssuanceId) && (
-                <> SPV FBTC is MPT — pool create requires MPTokensV2 on the Falcon image.</>
+                <> SPV fBTC is MPT — pool create requires MPTokensV2 on the Falcon image.</>
               )}
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -582,7 +582,7 @@ export default function MarketLiquidityPanel({
             </button>
             {(token.kind === 'mpt' || token.mptIssuanceId) && (
               <p className="text-[10px] text-slate-500">
-                SPV FBTC amounts are in BTC (8 dp). Create needs MPTokensV2 enabled on Falcon.
+                SPV fBTC amounts are in BTC (8 dp). Create needs MPTokensV2 enabled on Falcon.
               </p>
             )}
           </div>

@@ -717,7 +717,7 @@ export async function submitSpvBridgeBurn(opts: {
     const msg = e instanceof Error ? e.message : String(e)
     if (/tecINSUFFICIENT_FUNDS/i.test(msg)) {
       throw new Error(
-        `Not enough FBTC to redeem ${amountSats} sats. Use Max for your full redeemable balance.`,
+        `Not enough fBTC to redeem ${amountSats} sats. Use Max for your full redeemable balance.`,
       )
     }
     throw e instanceof Error ? e : new Error(msg)
@@ -910,7 +910,7 @@ export async function spvPegOut(opts: {
   const want = Math.floor(opts.amountSats)
 
   opts.onStep?.(
-    `Burning ${want} sats FBTC (shared reserve path — any holder can redeem)…`,
+    `Burning ${want} sats fBTC (shared reserve path — any holder can redeem)…`,
   )
   const burn = await submitSpvBridgeBurn({
     falconSecret: opts.falconSecret,
@@ -1086,7 +1086,7 @@ export async function spvProveRedeem(opts: {
   if (!materials || materials.confirmations < minConf) {
     throw new Error(
       `Need ${minConf} BTC confirmations on the reserve payout (have ${materials?.confirmations ?? 0}). ` +
-        `Tx ${txShort}… — wait for more blocks, then click Prove again. Your FBTC burn is safe.`,
+        `Tx ${txShort}… — wait for more blocks, then click Prove again. Your fBTC burn is safe.`,
     )
   }
   opts.onStep?.('Submitting BTCWithdrawProve…')
@@ -1155,14 +1155,14 @@ export async function submitSpvDepositClaim(opts: {
     }
     if (/tecNO_ENTRY/i.test(msg)) {
       throw new Error(
-        'tecNO_ENTRY on Claim FBTC — Falcon has no BTC header (or matching deposit) for this tx. ' +
+        'tecNO_ENTRY on Claim fBTC — Falcon has no BTC header (or matching deposit) for this tx. ' +
           'Usually Falcon SPV headers lag Bitcoin — wait until Falcon tip passes your deposit block, then Claim again. ' +
           'Or the BTC went to an old watch address (not the current tb1q… protocol hold). Do not re-send BTC.',
       )
     }
     if (/^temMALFORMED/i.test(msg) || msg === 'temMALFORMED' || /temMALFORMED/i.test(msg)) {
       throw new Error(
-        'temMALFORMED — SPV proof rejected (merkle/raw tx/OP_RETURN/watch). Hard-refresh and retry Claim FBTC.',
+        'temMALFORMED — SPV proof rejected (merkle/raw tx/OP_RETURN/watch). Hard-refresh and retry Claim fBTC.',
       )
     }
     if (/tecTOO_SOON/i.test(msg)) {

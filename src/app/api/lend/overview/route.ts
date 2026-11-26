@@ -56,7 +56,7 @@ function iouValue(v: unknown): number | null {
 async function resolveToken(_networkKey: ReturnType<typeof resolveNetworkKey>) {
   const stable = await loadStableToken()
   return {
-    symbol: 'F-USDC',
+    symbol: 'fUSDC',
     currency: stable.currency,
     issuer: stable.issuer,
     configured: !!stable.issuer,

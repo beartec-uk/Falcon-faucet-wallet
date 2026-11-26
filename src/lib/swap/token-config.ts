@@ -1,5 +1,6 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 import { readFile } from 'node:fs/promises'
+import { fAssetLabel } from '@/lib/f-asset-label'
 import path from 'node:path'
 import type { NetworkKey } from '@/lib/networks'
 import { serverRpcCall } from '@/lib/network-server'
@@ -32,8 +33,7 @@ function mapToken(t: {
   decimals?: number
 }): StableTokenRef {
   const sym = t.symbol
-  const displaySymbol =
-    sym.startsWith('F-') || /^F[A-Z]{2,}$/.test(sym) ? sym : `F-${sym}`
+  const displaySymbol = fAssetLabel(sym)
   return {
     symbol: t.symbol,
     displaySymbol,
@@ -93,7 +93,7 @@ export async function loadSpvFbtcToken(
     if (!id || r?.error) return null
     return {
       symbol: 'FBTC',
-      displaySymbol: 'FBTC',
+      displaySymbol: 'fBTC',
       currency: 'BTC',
       issuer: r.node?.Account || '',
       kind: 'mpt',
@@ -109,7 +109,7 @@ export async function loadSpvFbtcToken(
 export async function loadStableToken(): Promise<StableTokenRef> {
   const all = await loadStableTokens()
   if (all[0]) return all[0]
-  return { symbol: 'F-USDC', displaySymbol: 'F-USDC', currency: 'QUC', issuer: '' }
+  return { symbol: 'F-USDC', displaySymbol: 'fUSDC', currency: 'QUC', issuer: '' }
 }
 
 /**
@@ -128,7 +128,7 @@ export async function resolveStableToken(opts?: {
     (symbol && /fbnb|bnb/i.test(symbol)) ||
     (currency && currency.toUpperCase() === 'BNB')
   ) {
-    return { symbol: 'F-USDC', displaySymbol: 'F-USDC', currency: 'QUC', issuer: '' }
+    return { symbol: 'F-USDC', displaySymbol: 'fUSDC', currency: 'QUC', issuer: '' }
   }
   const issuer = opts?.issuer?.trim()
   const networkKey = opts?.networkKey || 'testnet'
@@ -168,7 +168,7 @@ export async function resolveStableToken(opts?: {
     if (byIss) return byIss
   }
 
-  return all[0] ?? { symbol: 'F-USDC', displaySymbol: 'F-USDC', currency: 'QUC', issuer: '' }
+  return all[0] ?? { symbol: 'F-USDC', displaySymbol: 'fUSDC', currency: 'QUC', issuer: '' }
 }
 
 /** Tokens in pool-tab order; FBTC uses SPV MPT when available. */

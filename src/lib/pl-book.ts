@@ -1,5 +1,7 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
-/** Per-pool LP and per-market lend lines for the Falcon wallet on network 2300. */
+import { fAssetLabel } from '@/lib/f-asset-label'
+
+/** Per-pool LP and per-market lend lines for the Falcon wallet on Falcon testnet. */
 
 export type PlPoolLine = {
   id: string
@@ -29,10 +31,7 @@ function digits(v: unknown): string {
 }
 
 function assetLabel(asset: string): string {
-  if (asset === 'USDC') return 'F-USDC'
-  if (asset === 'ETH') return 'FETH'
-  if (asset === 'BTC4') return 'FBTC'
-  return asset
+  return fAssetLabel(asset)
 }
 
 function human(raw: string, asset: string): string {
@@ -63,6 +62,14 @@ function sliceOf(reserve: string, part: string, whole: string): string {
   const w = BigInt(whole || '0')
   if (w === 0n) return '0'
   return ((BigInt(reserve || '0') * BigInt(part || '0')) / w).toString()
+}
+
+function rankAsset(label: string): string {
+  const n = fAssetLabel(label)
+  if (n === 'fUSDC') return 'USDC'
+  if (n === 'fETH') return 'ETH'
+  if (n === 'fBTC') return 'BTC4'
+  return label
 }
 
 function rank(asset: string): number {
@@ -107,7 +114,7 @@ export function parsePlBook(body: {
       sharePct: pctOf(lp, supply),
     })
   }
-  lines.sort((x, y) => rank(x.assetLabel === 'F-USDC' ? 'USDC' : x.assetLabel === 'FETH' ? 'ETH' : 'BTC4') - rank(y.assetLabel === 'F-USDC' ? 'USDC' : y.assetLabel === 'FETH' ? 'ETH' : 'BTC4'))
+  lines.sort((x, y) => rank(rankAsset(x.assetLabel)) - rank(rankAsset(y.assetLabel)))
 
   const lend: PlLendLine[] = []
   for (const pos of positions) {
@@ -129,7 +136,7 @@ export function parsePlBook(body: {
       debt: debt === '0' ? '' : human(debt, asset),
     })
   }
-  lend.sort((x, y) => rank(x.label === 'F-USDC' ? 'USDC' : x.label === 'FETH' ? 'ETH' : 'BTC4') - rank(y.label === 'F-USDC' ? 'USDC' : y.label === 'FETH' ? 'ETH' : 'BTC4'))
+  lend.sort((x, y) => rank(rankAsset(x.label)) - rank(rankAsset(y.label)))
 
   return { pools: lines, lend }
 }

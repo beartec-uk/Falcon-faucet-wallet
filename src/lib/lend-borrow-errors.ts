@@ -25,7 +25,7 @@ export function borrowBlockedReason(
   if (!vault) return 'Lend vault is not configured.'
   const available = vault.assetsAvailable ?? 0
   if (principalFusdc != null && principalFusdc > available) {
-    return `Only ${available.toLocaleString()} F-USDC is available to borrow from the vault right now.`
+    return `Only ${available.toLocaleString()} fUSDC is available to borrow from the vault right now.`
   }
   if (!permissionless) {
     const cover = data.pool?.borrow.brokerCoverFusdc ?? 0
@@ -35,7 +35,7 @@ export function borrowBlockedReason(
         ? minBrokerCoverForPrincipal(principalFusdc, coverPct)
         : minBrokerCoverForPrincipal(1, coverPct)
     if (cover < minCover) {
-      return `Loan broker first-loss cover is ${cover.toLocaleString()} F-USDC (need at least ~${minCover.toLocaleString()} F-USDC). The pool operator must post broker cover before borrows can open.`
+      return `Loan broker first-loss cover is ${cover.toLocaleString()} fUSDC (need at least ~${minCover.toLocaleString()} fUSDC). The pool operator must post broker cover before borrows can open.`
     }
   }
   return null
@@ -109,11 +109,11 @@ export function repayBlockedReason(
   // 1e-6 F-USDC tolerance: float/IOU scale noise must not gray out Pay full amount.
   if (due != null && amount + 1e-6 < due) {
     const full = fullRepayAmount(loan)
-    return `Repay amount is too low. This installment requires at least ${full ?? formatRepayAmount(due)} F-USDC (principal ${loan.principalFusdc} + interest/fees). Tap Pay full amount to use the exact due.`
+    return `Repay amount is too low. This installment requires at least ${full ?? formatRepayAmount(due)} fUSDC (principal ${loan.principalFusdc} + interest/fees). Tap Pay full amount to use the exact due.`
   }
   const balance = data?.wallet?.fusdcBalance
   if (balance != null && amount > balance + 1e-9) {
-    return `Insufficient F-USDC in wallet (${balance.toLocaleString(undefined, { maximumFractionDigits: 4 })} available).`
+    return `Insufficient fUSDC in wallet (${balance.toLocaleString(undefined, { maximumFractionDigits: 4 })} available).`
   }
   return null
 }
@@ -128,7 +128,7 @@ export function explainLendSubmitError(
   if (engineResult === 'tecINSUFFICIENT_PAYMENT') {
     const due = opts?.paymentDueFusdc ?? data?.loans?.[0]?.paymentDueFusdc ?? data?.loans?.[0]?.totalOutstandingFusdc
     if (due != null && due > 0) {
-      return `Repay failed: payment is not sufficient. This installment requires at least ~${due.toLocaleString(undefined, { maximumFractionDigits: 6 })} F-USDC (principal + interest/fees) — repaying only the borrowed principal (e.g. 10) is not enough.`
+      return `Repay failed: payment is not sufficient. This installment requires at least ~${due.toLocaleString(undefined, { maximumFractionDigits: 6 })} fUSDC (principal + interest/fees) — repaying only the borrowed principal (e.g. 10) is not enough.`
     }
     return 'Repay failed: payment is not sufficient. Include accrued interest and fees — use the payment due amount shown on Positions, not just the principal.'
   }
@@ -139,25 +139,25 @@ export function explainLendSubmitError(
       const available = vault?.assetsAvailable ?? 0
       const borrowed = vault ? Math.max(0, vault.assetsTotal - available) : 0
       if (lp && (lp.shareBalance ?? 0) <= 0) {
-        return 'Withdraw failed: you have no vault shares. Supply F-USDC on the Supply tab first.'
+        return 'Withdraw failed: you have no vault shares. Supply fUSDC on the Supply tab first.'
       }
       if (available <= 0 && borrowed > 0) {
-        return `Withdraw failed: vault liquidity is fully borrowed (${borrowed.toLocaleString(undefined, { maximumFractionDigits: 2 })} F-USDC out on loans). Withdraw after borrowers repay, or try a smaller amount.`
+        return `Withdraw failed: vault liquidity is fully borrowed (${borrowed.toLocaleString(undefined, { maximumFractionDigits: 2 })} fUSDC out on loans). Withdraw after borrowers repay, or try a smaller amount.`
       }
       return base
-        ? `Withdraw failed (${base}). You may be over your share balance or vault liquid F-USDC — use Max or a lower amount.`
-        : 'Withdraw failed: insufficient vault shares or liquid F-USDC in the pool.'
+        ? `Withdraw failed (${base}). You may be over your share balance or vault liquid fUSDC — use Max or a lower amount.`
+        : 'Withdraw failed: insufficient vault shares or liquid fUSDC in the pool.'
     }
     const permissionless =
       data?.protocol.lendingPermissionless && data?.protocol.lendingCollateral
     if (!permissionless) {
       const cover = data?.pool?.borrow.brokerCoverFusdc ?? 0
       if (cover < 0.01) {
-        return 'Borrow failed: loan broker has no first-loss cover (0 F-USDC). The pool operator must deposit F-USDC broker cover before anyone can borrow — vault liquidity alone is not enough.'
+        return 'Borrow failed: loan broker has no first-loss cover (0 fUSDC). The pool operator must deposit fUSDC broker cover before anyone can borrow — vault liquidity alone is not enough.'
       }
     }
     if ((data?.vaults?.[0]?.assetsAvailable ?? 0) <= 0) {
-      return 'Borrow failed: no F-USDC available in the lend vault to fund loans.'
+      return 'Borrow failed: no fUSDC available in the lend vault to fund loans.'
     }
     if (permissionless) {
       return base

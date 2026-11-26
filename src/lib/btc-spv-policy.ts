@@ -102,7 +102,7 @@ export function evaluateHeaderLag(
       gap: null,
       level: 'unknown',
       claimSafe: false,
-      message: 'SPV tip unknown — wait for status refresh before claiming FBTC.',
+      message: 'SPV tip unknown — wait for status refresh before claiming fBTC.',
     }
   }
   const gap = Math.max(0, b - f)
@@ -113,7 +113,7 @@ export function evaluateHeaderLag(
       gap,
       level: 'critical',
       claimSafe: false,
-      message: `Falcon SPV headers are ~${gap.toLocaleString()} blocks behind Bitcoin. Claim FBTC will fail until headers catch up — do not re-send BTC.`,
+      message: `Falcon SPV headers are ~${gap.toLocaleString()} blocks behind Bitcoin. Claim fBTC will fail until headers catch up — do not re-send BTC.`,
     }
   }
   if (gap >= LAG_WARN_BLOCKS) {

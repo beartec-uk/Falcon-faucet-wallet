@@ -89,20 +89,20 @@ export function withdrawBlockedReason(
 
   const shareBalance = lp?.shareBalance ?? 0
   if (shareBalance <= 0) {
-    return 'No vault shares to withdraw — supply F-USDC on the Supply tab first.'
+    return 'No vault shares to withdraw — supply fUSDC on the Supply tab first.'
   }
 
   const maxFromShares = fusdcFromShareBalance(shareBalance, vault)
   const maxWithdraw = maxWithdrawFusdc(shareBalance, vault)
   if (maxFromShares != null && offered > maxFromShares + 1e-9) {
-    return `Round amounts like ${amountStr} need more shares than you hold (${formatIouAmount(shareBalance)} shares ≈ ${maxWithdraw ?? formatIouAmount(maxFromShares)} F-USDC). Tap Withdraw all or Max.`
+    return `Round amounts like ${amountStr} need more shares than you hold (${formatIouAmount(shareBalance)} shares ≈ ${maxWithdraw ?? formatIouAmount(maxFromShares)} fUSDC). Tap Withdraw all or Max.`
   }
 
   if (vault.assetsAvailable <= 0) {
-    return 'Vault has no liquid F-USDC right now — borrowers may have drawn the pool. Try again after repayments.'
+    return 'Vault has no liquid fUSDC right now — borrowers may have drawn the pool. Try again after repayments.'
   }
   if (offered > vault.assetsAvailable + 1e-9) {
-    return `Only ${vault.assetsAvailable.toLocaleString(undefined, { maximumFractionDigits: 6 })} F-USDC is liquid in the vault (${(vault.assetsTotal - vault.assetsAvailable).toLocaleString(undefined, { maximumFractionDigits: 2 })} borrowed).`
+    return `Only ${vault.assetsAvailable.toLocaleString(undefined, { maximumFractionDigits: 6 })} fUSDC is liquid in the vault (${(vault.assetsTotal - vault.assetsAvailable).toLocaleString(undefined, { maximumFractionDigits: 2 })} borrowed).`
   }
 
   const normalized = normalizeVaultWithdrawAmount(offered, vault, shareBalance)

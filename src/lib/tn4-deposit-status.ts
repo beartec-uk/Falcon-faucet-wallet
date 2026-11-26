@@ -126,10 +126,10 @@ export function tn4DepositStatusView(d: Tn4StatusInput): Tn4StatusView {
       label = confirmingLabel(d)
       break
     case 'awaiting_mint':
-      label = 'Minting FBTC on Falcon.'
+      label = 'Minting fBTC on Falcon.'
       break
     case 'minted':
-      label = 'FBTC minted'
+      label = 'fBTC minted'
       break
     case 'expired':
       label = 'Expired (no deposit within 3 days)'

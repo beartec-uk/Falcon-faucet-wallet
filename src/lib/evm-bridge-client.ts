@@ -344,7 +344,7 @@ export async function depositEthToFethBridge(opts: {
   const weth = cfg.weth_token
   const lock = cfg.weth_lock_contract
   if (!weth?.match(/^0x[a-fA-F0-9]{40}$/) || !lock?.match(/^0x[a-fA-F0-9]{40}$/)) {
-    throw new Error('FETH bridge not deployed yet — WETH lock contract missing from config')
+    throw new Error('fETH bridge not deployed yet — WETH lock contract missing from config')
   }
   if (!FALCON_ADDRESS_RE.test(falconAccount.trim())) {
     throw new Error('Invalid Falcon destination address — cannot bridge in')
@@ -471,7 +471,7 @@ export async function depositWethToBridge(opts: {
   const weth = cfg.weth_token
   const lock = cfg.weth_lock_contract
   if (!weth?.match(/^0x[a-fA-F0-9]{40}$/) || !lock?.match(/^0x[a-fA-F0-9]{40}$/)) {
-    throw new Error('FETH bridge not deployed yet — WETH lock contract missing from config')
+    throw new Error('fETH bridge not deployed yet — WETH lock contract missing from config')
   }
   return depositErc20ToBridge({
     rpcUrl: cfg.rpc_url,

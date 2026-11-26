@@ -21,9 +21,9 @@ export const PUBLIC_MULTI_ROW_IDS: MultiChainRowId[] = ['eth', 'usdc', 'btc', 'x
 
 export const FALCON_ROW_LABELS: Record<FalconAssetId, string> = {
   falcon: 'FPL',
-  fusdc: 'F-USDC',
-  feth: 'FETH',
-  fbtc: 'FBTC',
+  fusdc: 'fUSDC',
+  feth: 'fETH',
+  fbtc: 'fBTC',
   fbnb: 'FBNB',
 }
 

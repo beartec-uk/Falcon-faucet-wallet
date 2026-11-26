@@ -68,12 +68,12 @@ export function supplyBlockedReason(
   if (!Number.isFinite(offered) || offered <= 0) return 'Enter a supply amount.'
 
   if (!data.wallet?.hasFusdcTrustLine) {
-    return 'Add a F-USDC trust line on Wallet → Bridge or Swap first.'
+    return 'Add a fUSDC trust line on Wallet → Bridge or Swap first.'
   }
 
   const balance = data.wallet.fusdcBalance
   if (balance != null && offered > balance + 1e-9) {
-    return `Insufficient F-USDC (${balance.toLocaleString(undefined, { maximumFractionDigits: 6 })} available).`
+    return `Insufficient fUSDC (${balance.toLocaleString(undefined, { maximumFractionDigits: 6 })} available).`
   }
 
   const normalized = normalizeVaultDepositAmount(offered, vault)
@@ -83,7 +83,7 @@ export function supplyBlockedReason(
 
   const normalizedNum = parseFloat(normalized)
   if (balance != null && normalizedNum > balance + 1e-9) {
-    return `After vault share rounding, ${normalized} F-USDC is required but you only hold ${balance.toLocaleString(undefined, { maximumFractionDigits: 6 })}.`
+    return `After vault share rounding, ${normalized} fUSDC is required but you only hold ${balance.toLocaleString(undefined, { maximumFractionDigits: 6 })}.`
   }
 
   return null
