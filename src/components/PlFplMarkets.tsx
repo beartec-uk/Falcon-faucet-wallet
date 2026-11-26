@@ -18,6 +18,12 @@ import {
 import { fetchSequenceInfo } from '@/lib/wallet-submit'
 import { explainTxError } from '@/lib/pl-key-commit'
 import { fAssetLabel } from '@/lib/f-asset-label'
+import {
+  minOutAfterSlippage,
+  otherSwapAssets,
+  quoteRoute,
+  routeLabel,
+} from '@/lib/pl-swap-quote'
 
 type Asset = 'FPL' | 'BTC4' | 'ETH' | 'USDC'
 const ASSETS: Asset[] = ['FPL', 'USDC', 'ETH', 'BTC4']
@@ -338,32 +344,6 @@ function collateralFor(asset: Asset, human: string, priceFpl: string, ltvBps: nu
   const ltv = BigInt(ltvBps > 0 ? ltvBps : 5000)
   const need = (debt * 10000n + ltv - 1n) / ltv
   return `About ${fromRaw('FPL', need.toString())} FPL collateral at ${fromRaw('FPL', priceFpl)} FPL per ${asset}.`
-}
-
-function quoteOut(rin: bigint, rout: bigint, amountIn: bigint): bigint {
-  if (rin <= 0n || rout <= 0n || amountIn <= 0n) return 0n
-  const inn = amountIn * 997n
-  return (inn * rout) / (rin * 1000n + inn)
-}
-
-function poolSides(p: Pool, tokenIn: string): { rin: bigint; rout: bigint } | null {
-  if (p.reserve_a === '0' || p.reserve_b === '0') return null
-  if (p.asset_a === tokenIn) return { rin: BigInt(p.reserve_a), rout: BigInt(p.reserve_b) }
-  if (p.asset_b === tokenIn) return { rin: BigInt(p.reserve_b), rout: BigInt(p.reserve_a) }
-  return null
-}
-
-function quoteRoute(pools: Pool[], tokenIn: Asset, tokenOut: Asset, amountIn: bigint): bigint {
-  const direct = pools.find((p) => poolSides(p, tokenIn) && (p.asset_a === tokenOut || p.asset_b === tokenOut))
-  if (direct) {
-    const s = poolSides(direct, tokenIn)!
-    return quoteOut(s.rin, s.rout, amountIn)
-  }
-  if (tokenIn !== 'FPL' && tokenOut !== 'FPL') {
-    const mid = quoteRoute(pools, tokenIn, 'FPL', amountIn)
-    return quoteRoute(pools, 'FPL', tokenOut, mid)
-  }
-  return 0n
 }
 
 const SUBMIT_TIMEOUT_MS = 45_000
@@ -1171,7 +1151,7 @@ export default function PlFplMarkets({ mode }: { mode: 'swap' | 'pool' | 'lend' 
       if (kind === 'swap') {
         if (sell === buy) throw new Error('Pick two different assets')
         const amountIn = toRaw(sell, amount)
-        const minOut = quoted > 1n ? quoted - quoted / 50n : 1n
+        const minOut = minOutAfterSlippage(quoted)
         await send((sequence) =>
           signPlSwapRoute({
             account,
@@ -1280,33 +1260,37 @@ export default function PlFplMarkets({ mode }: { mode: 'swap' | 'pool' | 'lend' 
         <div className="card p-5 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <label className="text-xs text-slate-400">
-              Sell
-              <select className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" value={sell} onChange={(e) => setSell(e.target.value as Asset)}>
+              From
+              <select className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" value={sell} onChange={(e) => {
+                const next = e.target.value as Asset
+                setSell(next)
+                if (next === buy) setBuy(otherSwapAssets(next)[0])
+              }}>
                 {ASSETS.map((a) => <option key={a} value={a}>{assetLabel(a)}</option>)}
               </select>
             </label>
             <label className="text-xs text-slate-400">
-              Receive
+              To
               <select className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" value={buy} onChange={(e) => setBuy(e.target.value as Asset)}>
-                {ASSETS.map((a) => <option key={a} value={a}>{assetLabel(a)}</option>)}
+                {otherSwapAssets(sell).map((a) => <option key={a} value={a}>{assetLabel(a)}</option>)}
               </select>
             </label>
           </div>
           <input className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white" placeholder={`Amount of ${assetLabel(sell)}`} value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <p className="text-xs text-slate-400">
-            You can swap any f-asset for any other f-asset (fETH, fUSDC, fBTC, or FPL). A swap between two f-assets goes through FPL in one step.
-          </p>
-          <p className="text-xs text-slate-400">
-            Quote: {quoted > 0n ? fromRaw(buy, quoted.toString()) : '—'} {assetLabel(buy)}
-            {sell !== 'FPL' && buy !== 'FPL' ? ' via FPL' : ''}
-            {sell !== 'FPL' && priceFor(markets, pools, sell) !== '0'
-              ? ` · ${fromRaw('FPL', priceFor(markets, pools, sell))} FPL per ${assetLabel(sell)}`
-              : ''}
-            {buy !== 'FPL' && priceFor(markets, pools, buy) !== '0'
-              ? ` · ${fromRaw('FPL', priceFor(markets, pools, buy))} FPL per ${assetLabel(buy)}`
-              : ''}
-          </p>
-          <button type="button" className="btn-primary w-full" disabled={busy} onClick={() => act('swap')}>
+          <div className="text-xs text-slate-400 space-y-1">
+            <p>
+              Quote: {sell !== buy && quoted > 0n ? `${fromRaw(buy, quoted.toString())} ${assetLabel(buy)}` : '—'}
+            </p>
+            {sell !== buy && (
+              <p>Route: {routeLabel(sell, buy)}</p>
+            )}
+            {sell !== buy && quoted > 0n && (
+              <p>
+                Minimum received: {fromRaw(buy, minOutAfterSlippage(quoted).toString())} {assetLabel(buy)} (2% slippage)
+              </p>
+            )}
+          </div>
+          <button type="button" className="btn-primary w-full" disabled={busy || sell === buy || quoted <= 0n} onClick={() => act('swap')}>
             {busy ? stage || 'Submitting…' : 'Swap on ledger'}
           </button>
         </div>
