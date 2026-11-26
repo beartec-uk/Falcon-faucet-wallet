@@ -229,7 +229,7 @@ export default function VaultPage() {
       const tokenFusdc = Array.isArray(d.assets?.tokens)
         ? d.assets.tokens.find(
             (t: { currency?: string; symbol?: string }) =>
-              t.currency === 'USDC' || t.symbol === 'F-USDC',
+              t.currency === 'USDC' || t.symbol === 'F-USDC' || t.symbol === 'fUSDC',
           )
         : undefined
       const fusdc = d.assets?.fusdc ?? tokenFusdc
@@ -1146,7 +1146,7 @@ export default function VaultPage() {
       let issuer = account?.fusdc?.issuer || ''
       if (!issuer) {
         const tokens = await resolveNetworkTokens(network.key)
-        const fusdcTok = tokens.find((t) => t.symbol === 'F-USDC' || t.currency === 'QUC')
+        const fusdcTok = tokens.find((t) => t.symbol === 'F-USDC' || t.symbol === 'fUSDC' || t.currency === 'QUC')
         if (!fusdcTok?.issuer) {
           throw new Error('F-USDC issuer not configured for this network')
         }

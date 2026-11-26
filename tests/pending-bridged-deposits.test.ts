@@ -119,7 +119,7 @@ describe('formatPendingAmount / pending labels', () => {
     expect(formatPendingAmount(Number.NaN)).toBeNull()
   })
 
-  it('only FBTC has a pending label today — FETH and F-USDC have no account API', () => {
+  it('only fBTC has a pending label today — fETH and fUSDC have no account API', () => {
     const totals = bridgedPendingTotals({
       tn4Deposits: [{ state: 'broadcasting', funding_sats: 21_000_000 }],
     })

@@ -110,7 +110,7 @@ async function waitSeq(account: string, network: string, want: number, timeoutMs
     await new Promise((r) => setTimeout(r, 600))
   }
   throw new Error(
-    'Ledger did not commit the rail tx — wait and retry Claim FBTC. Deposit is still on Bitcoin; do not re-send BTC.',
+    'Ledger did not commit the rail tx — wait and retry Claim fBTC. Deposit is still on Bitcoin; do not re-send BTC.',
   )
 }
 
@@ -252,7 +252,7 @@ async function pegInBitcoinSpv(opts: {
     falconSecret: opts.falconSecret,
   })
   await postTx(dep, opts.network)
-  opts.onStep?.('Waiting for Falcon packers to mint FBTC (can take up to a few minutes)…')
+  opts.onStep?.('Waiting for Falcon packers to mint fBTC (can take up to a few minutes)…')
   const want = snap.sequence + 1
   const tWait = Date.now()
   while (Date.now() - tWait < 180_000) {
@@ -262,12 +262,12 @@ async function pegInBitcoinSpv(opts: {
     }
     const sec = Math.floor((Date.now() - tWait) / 1000)
     opts.onStep?.(
-      `Waiting for Falcon packers to mint FBTC… ${sec}s (do not re-send BTC)`,
+      `Waiting for Falcon packers to mint fBTC… ${sec}s (do not re-send BTC)`,
     )
     await new Promise((r) => setTimeout(r, 1000))
   }
   throw new Error(
-    'Ledger did not commit the rail tx — wait and retry Claim FBTC. Deposit is still on Bitcoin; do not re-send BTC.',
+    'Ledger did not commit the rail tx — wait and retry Claim fBTC. Deposit is still on Bitcoin; do not re-send BTC.',
   )
 }
 
@@ -504,10 +504,10 @@ export async function pegOutPlBtc(opts: {
     }
   } else {
     if (snap.btcSats < amount) {
-      throw new Error(`Insufficient FBTC (have ${(snap.btcSats / 1e8).toFixed(8)})`)
+      throw new Error(`Insufficient fBTC (have ${(snap.btcSats / 1e8).toFixed(8)})`)
     }
     if (snap.balance < FEE) throw new Error(`Need ${FEE} FPL for the withdraw fee`)
-    opts.onStep?.('Burning FBTC (no FROST Kickoff)…')
+    opts.onStep?.('Burning fBTC (no FROST Kickoff)…')
     const tx = await signRailWithdraw({
       account: opts.account,
       sequence: snap.sequence,
@@ -601,7 +601,7 @@ export async function pegOutPlBtc(opts: {
   }
   if (confs < need || !kickoffTxid) {
     throw new Error(
-      `FBTC burned and dest-lock Kickoff posted. Wait for ${need} Bitcoin confirmations then retry take (txid ${kickoffTxid || 'pending'}).`,
+      `fBTC burned and dest-lock Kickoff posted. Wait for ${need} Bitcoin confirmations then retry take (txid ${kickoffTxid || 'pending'}).`,
     )
   }
 

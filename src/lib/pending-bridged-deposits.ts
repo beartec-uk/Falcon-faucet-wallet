@@ -2,7 +2,7 @@
 // Pure helpers: sum in-flight (not yet minted) bridged deposits for the
 // wallet's Bridged assets list. No I/O.
 
-/** BTC → FBTC states that count as in-flight, per the deposit tracker. */
+/** BTC → fBTC states that count as in-flight, per the deposit tracker. */
 export const TN4_IN_FLIGHT_STATES = new Set([
   'funded',
   'waiting_operator_liquidity',

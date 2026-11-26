@@ -190,8 +190,8 @@ export default function LendPage() {
         }
         const notice =
           adjusted && chainAmount !== String(offered)
-            ? `Supplied ${chainAmount} F-USDC to vault (adjusted from ${offered} for vault share precision)`
-            : `Supplied ${chainAmount} F-USDC to vault`
+            ? `Supplied ${chainAmount} fUSDC to vault (adjusted from ${offered} for vault share precision)`
+            : `Supplied ${chainAmount} fUSDC to vault`
         setNotice(notice)
       })
     },
@@ -271,7 +271,7 @@ export default function LendPage() {
             ).then((r) => ({ tx_blob: r.tx_blob })),
         })
         setNotice(
-          `Borrowed ${principal} F-USDC for ${formatLoanDuration(epochs)} — ${collateralFalcon} FPL locked as collateral`,
+          `Borrowed ${principal} fUSDC for ${formatLoanDuration(epochs)} — ${collateralFalcon} FPL locked as collateral`,
         )
       })
     },
@@ -396,8 +396,8 @@ export default function LendPage() {
         }
         const notice =
           adjusted && chainAmount !== String(offered)
-            ? `Withdrew ${chainAmount} F-USDC from vault (adjusted from ${offered} for share precision)`
-            : `Withdrew ${chainAmount} F-USDC from vault`
+            ? `Withdrew ${chainAmount} fUSDC from vault (adjusted from ${offered} for share precision)`
+            : `Withdrew ${chainAmount} fUSDC from vault`
         setNotice(notice)
       })
     },
@@ -510,7 +510,7 @@ export default function LendPage() {
         return
       }
       if (!tok?.issuer) {
-        setError('F-USDC token config missing — cannot repay.')
+        setError('fUSDC token config missing — cannot repay.')
         return
       }
       const loan = data?.loans?.find((l) => l.id === loanId)
@@ -589,7 +589,7 @@ export default function LendPage() {
           }
           throw e
         }
-        setNotice(`Repaid ${payAmount} F-USDC`)
+        setNotice(`Repaid ${payAmount} fUSDC`)
       })
     },
     [data, wallet, withSecret, networkKey, network.networkId],

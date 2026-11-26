@@ -27,7 +27,7 @@ describe('H-4 cold review: accepts portal-built packages', () => {
     expect(r.tx).toEqual({ TransactionType: 'Payment', Account: VAULT, Fee: '12', Sequence: 7, LastLedgerSequence: 1000, Flags: 0, NetworkID: NET, Destination: DEST, Amount: '1000000' })
     expect(r.tx).not.toHaveProperty('SigningPubKey')
   })
-  it('F-USDC Payment and TrustSet', () => {
+  it('fUSDC Payment and TrustSet', () => {
     const f = reviewUnsignedTx(pkg(buildFusdcPaymentTxJson({ ...common, destination: DEST, issuer: ISSUER, currency: 'QUC', amount: '5.5' })), VAULT)
     expect(f.transactionType === 'Payment' && f.amount).toEqual({ kind: 'iou', currency: 'QUC', issuer: ISSUER, value: '5.5' })
     const t = reviewUnsignedTx(pkg(buildTrustSetTxJson({ ...common, currency: 'QUC', issuer: ISSUER, limit: '10000000' })), VAULT)

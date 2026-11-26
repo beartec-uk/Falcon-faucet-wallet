@@ -26,6 +26,7 @@ import { btcToSatsString } from '@/lib/xrpl-amount'
 import DexOrdersPanel from '@/components/DexOrdersPanel'
 import OrderBookPanel from '@/components/OrderBookPanel'
 import Pl2300Trade from '@/components/Pl2300Trade'
+import { fAssetLabel } from '@/lib/f-asset-label'
 
 const DROPS_PER_XRP = 1_000_000
 
@@ -113,8 +114,7 @@ function mapConfigToken(t: {
   decimals?: number
 }): PairToken {
   const sym = t.symbol
-  const displaySymbol =
-    sym.startsWith('F-') || /^F[A-Z]{2,}$/.test(sym) ? sym : `F-${sym}`
+  const displaySymbol = fAssetLabel(sym)
   return {
     symbol: t.symbol,
     displaySymbol,
@@ -626,9 +626,6 @@ export default function SwapPage() {
       <NetworkBanner />
 
       <main className="flex-1 px-4 py-8 max-w-2xl mx-auto w-full space-y-5">
-        <p className="text-xs text-slate-500">
-          Swap against FPL: F-USDC, FETH, and FBTC. FBNB is not a public pair.
-        </p>
         {/* Pair tabs — Falcon-paired F-assets only */}
         {pairs.length > 0 && (
           <div className="flex rounded-xl overflow-hidden border border-slate-700 bg-slate-900/60">

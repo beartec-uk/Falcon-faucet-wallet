@@ -1,3 +1,4 @@
+import { fAssetLabel } from '@/lib/f-asset-label'
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 const DROPS_PER_FALCON = 1_000_000
 
@@ -16,27 +17,13 @@ export interface ParsedTxAmount {
 export function currencyToDisplayAsset(currency: string | undefined): string {
   if (!currency) return 'IOU'
   const c = currency.toUpperCase()
-  switch (c) {
-    case 'QUC':
-    case 'USD':
-    case 'USDC':
-      return 'F-USDC'
-    case 'ETH':
-      return 'FETH'
-    case 'BNB':
-      return 'FBNB'
-    case 'BTC':
-    case 'XBT':
-      return 'FBTC'
-    case 'QUT':
-    case 'USDT':
-      return 'F-USDT'
-    default:
-      // 3-char classic currency or hex 40-char — show readable code
-      if (/^[A-Z0-9]{3}$/.test(c)) return c
-      if (c.length >= 8) return `${c.slice(0, 4)}…`
-      return c
-  }
+  if (c === 'QUT' || c === 'USDT') return 'F-USDT'
+  const labelled = fAssetLabel(c)
+  if (labelled !== c) return labelled
+  // 3-char classic currency or hex 40-char — show readable code
+  if (/^[A-Z0-9]{3}$/.test(c)) return c
+  if (c.length >= 8) return `${c.slice(0, 4)}…`
+  return c
 }
 
 /** Parse XRPL Payment Amount (drops string or IOU object) for UI display. */
@@ -140,7 +127,7 @@ export function parseBridgeTxAmount(
   if (type === 'BTCBridgeBurn' || type === 'BTCWithdrawFinalize') {
     const fromTx = parseSatsAmount(tx.BtcWithdrawAmount)
     if (fromTx != null && fromTx > 0) {
-      return { display: formatSatsAsBtc(fromTx), asset: 'FBTC', currency: 'BTC' }
+      return { display: formatSatsAsBtc(fromTx), asset: 'fBTC', currency: 'BTC' }
     }
   }
 
@@ -150,13 +137,13 @@ export function parseBridgeTxAmount(
     if (created?.LedgerEntryType === 'BtcDeposit') {
       const sats = parseSatsAmount(created.NewFields?.BtcAmount)
       if (sats != null && sats > 0) {
-        return { display: formatSatsAsBtc(sats), asset: 'FBTC', currency: 'BTC' }
+        return { display: formatSatsAsBtc(sats), asset: 'fBTC', currency: 'BTC' }
       }
     }
     if (created?.LedgerEntryType === 'BtcWithdrawal') {
       const sats = parseSatsAmount(created.NewFields?.BtcWithdrawAmount)
       if (sats != null && sats > 0) {
-        return { display: formatSatsAsBtc(sats), asset: 'FBTC', currency: 'BTC' }
+        return { display: formatSatsAsBtc(sats), asset: 'fBTC', currency: 'BTC' }
       }
     }
   }
@@ -167,7 +154,7 @@ export function parseBridgeTxAmount(
     if (created?.LedgerEntryType === 'MPToken') {
       const sats = parseSatsAmount(created.NewFields?.MPTAmount)
       if (sats != null && sats > 0) {
-        return { display: formatSatsAsBtc(sats), asset: 'FBTC', currency: 'BTC' }
+        return { display: formatSatsAsBtc(sats), asset: 'fBTC', currency: 'BTC' }
       }
     }
     const mod = n.ModifiedNode
@@ -177,7 +164,7 @@ export function parseBridgeTxAmount(
       if (fin != null && prev != null) {
         const delta = Math.abs(fin - prev)
         if (delta > 0) {
-          return { display: formatSatsAsBtc(delta), asset: 'FBTC', currency: 'BTC' }
+          return { display: formatSatsAsBtc(delta), asset: 'fBTC', currency: 'BTC' }
         }
       }
       // PreviousFields may omit MPTAmount when going from 0 → n on some builds

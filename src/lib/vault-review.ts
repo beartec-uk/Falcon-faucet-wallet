@@ -147,7 +147,7 @@ export function reviewUnsignedTx(
   return { transactionType: 'TrustSet', ...common, limit, tx: { ...base, LimitAmount: { ...limit } } }
 }
 
-/** Human label for an issued currency (F-USDC is QUC on Falcon). */
+/** Human label for an issued currency (fUSDC is QUC on Falcon). */
 export function currencyLabel(c: string): string {
   return c === 'QUC' ? 'F-USDC' : c
 }

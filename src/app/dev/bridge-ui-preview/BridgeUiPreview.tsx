@@ -34,9 +34,9 @@ const LIVE_CAP = operatorCapacityFromFeed({
 const WALLET_PENDING: BridgedPendingTotals = { fbtcSats: 21_000_000, fusdc: 0, feth: 0 }
 
 const WALLET_ROWS: Array<{ id: 'fusdc' | 'feth' | 'fbtc'; symbol: string; subtitle: string; balance: string }> = [
-  { id: 'fusdc', symbol: 'F-USDC', subtitle: 'Bridged USDC on Falcon', balance: '12.5000' },
-  { id: 'feth', symbol: 'FETH', subtitle: 'Bridged ETH on Falcon', balance: '0.500000' },
-  { id: 'fbtc', symbol: 'FBTC', subtitle: 'Bridged BTC on Falcon', balance: '1.23400000' },
+  { id: 'fusdc', symbol: 'fUSDC', subtitle: 'Bridged USDC on Falcon', balance: '12.5000' },
+  { id: 'feth', symbol: 'fETH', subtitle: 'Bridged ETH on Falcon', balance: '0.500000' },
+  { id: 'fbtc', symbol: 'fBTC', subtitle: 'Bridged BTC on Falcon', balance: '1.23400000' },
 ]
 
 function fmt(n: number, d: number) {

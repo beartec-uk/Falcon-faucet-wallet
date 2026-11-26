@@ -54,14 +54,14 @@ export function parseFalconBalances(account: {
   }
 } | null): FalconBalances {
   const tokens = account?.assets?.tokens ?? []
-  const find = (currency: string, symbol: string) =>
-    tokens.find((t) => t.currency === currency || t.symbol === symbol)?.balance ?? 0
+  const find = (currency: string, ...symbols: string[]) =>
+    tokens.find((t) => t.currency === currency || symbols.includes(t.symbol))?.balance ?? 0
   return {
     falcon: account?.balance ?? 0,
     fusdc: account?.assets?.fusdc?.balance ?? 0,
-    feth: find('ETH', 'FETH'),
-    fbtc: account?.assets?.fbtc?.balance ?? find('BTC4', 'FBTC'),
-    fbnb: find('BNB', 'FBNB'),
+    feth: find('ETH', 'ETH', 'FETH', 'fETH'),
+    fbtc: account?.assets?.fbtc?.balance ?? find('BTC4', 'BTC4', 'BTC', 'FBTC', 'fBTC'),
+    fbnb: find('BNB', 'BNB', 'FBNB', 'fBNB'),
   }
 }
 

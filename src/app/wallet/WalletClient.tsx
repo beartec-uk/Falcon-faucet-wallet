@@ -2114,7 +2114,7 @@ export default function WalletPage() {
     const fusdc = account!.assets?.fusdc
     const fusdcBal = fusdc?.balance ?? 0
     const fethTok = account!.assets?.tokens?.find(
-      (t) => t.currency === 'ETH' || t.symbol === 'FETH',
+      (t) => t.currency === 'ETH' || t.symbol === 'FETH' || t.symbol === 'fETH',
     )
     const fethBal = fethTok?.balance ?? 0
     const fbnbTok = account!.assets?.tokens?.find(
@@ -2122,7 +2122,7 @@ export default function WalletPage() {
     )
     const fbnbBal = fbnbTok?.balance ?? 0
     const fbtcTok = account!.assets?.tokens?.find(
-      (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC',
+      (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC' || t.symbol === 'fBTC',
     )
     const fbtcBal = account!.assets?.fbtc?.balance ?? fbtcTok?.balance ?? 0
 
@@ -2147,10 +2147,10 @@ export default function WalletPage() {
       }
     } else if (sendAsset === 'feth') {
       if (network.networkId !== 2300 && (!fethTok?.issuer || fethTok.hasTrustLine === false)) {
-        setError('Add a FETH trust line on Bridge before sending'); return
+        setError('Add a fETH trust line on Bridge before sending'); return
       }
       if (amt > fethBal) {
-        setError('Insufficient FETH balance'); return
+        setError('Insufficient fETH balance'); return
       }
     } else if (sendAsset === 'fbnb') {
       if (!fbnbTok?.issuer || fbnbTok.hasTrustLine === false) {
@@ -2164,26 +2164,26 @@ export default function WalletPage() {
       if (network.networkId !== 2300 && !fbtcTok?.spvMpt && (!fbtcTok?.issuer || fbtcTok.hasTrustLine === false)) {
         setError(
           fbtcTok?.spvMpt === false
-            ? 'Add a FBTC trust line on Bridge before sending'
-            : 'No FBTC yet — bridge BTC → FBTC first (SPV, no trust line)',
+            ? 'Add a fBTC trust line on Bridge before sending'
+            : 'No fBTC yet — bridge BTC → fBTC first (SPV, no trust line)',
         )
         return
       }
       if (network.networkId === 2300) {
         // Node AssetPay only allows BTC/ETH/USDC today: a BTC4 send is "accepted" into the
         // mempool but dropped at pack, so the funds never move. Block until the node enables it.
-        setError('FBTC peer-to-peer send is not enabled on Falcon PL yet — your FBTC was not moved. Use Bridge to withdraw to Testnet4.')
+        setError('fBTC peer-to-peer send is not enabled on Falcon PL yet — your fBTC was not moved. Use Bridge to withdraw to Testnet4.')
         return
       }
       if (amt > fbtcBal) {
-        setError('Insufficient FBTC balance'); return
+        setError('Insufficient fBTC balance'); return
       }
     } else {
       if (network.networkId !== 2300 && (!fusdc?.issuer || fusdc.hasTrustLine === false)) {
-        setError('Add a F-USDC trust line on Swap or Bridge before sending'); return
+        setError('Add a fUSDC trust line on Swap or Bridge before sending'); return
       }
       if (amt > fusdcBal) {
-        setError('Insufficient F-USDC balance'); return
+        setError('Insufficient fUSDC balance'); return
       }
     }
 
@@ -2793,7 +2793,7 @@ export default function WalletPage() {
                 const fb = parseFalconBalances(account)
                 const fmt = (v: number) => (hideBalances ? MASK : v.toLocaleString(undefined, { maximumFractionDigits: 6 }))
                 const chips: { label: string; v: number }[] = [
-                  { label: 'F-USDC', v: fb.fusdc },
+                  { label: 'fUSDC', v: fb.fusdc },
                   { label: 'F-ETH', v: fb.feth },
                   { label: 'F-BTC', v: fb.fbtc },
                 ].filter((c) => c.v > 0)
@@ -3117,7 +3117,7 @@ export default function WalletPage() {
                                   className="rounded-xl border border-brand-500/25 bg-brand-500/5 px-4 py-3 space-y-2"
                                 >
                                   <div className="text-sm font-semibold text-white">
-                                    {job.asset === 'USDC' ? 'USDC → F-USDC' : 'ETH → FETH'}
+                                    {job.asset === 'USDC' ? 'USDC → fUSDC' : 'ETH → fETH'}
                                     {job.amountLabel ? ` · ${job.amountLabel}` : ''}
                                   </div>
                                   <p className="text-[11px] text-slate-500">
@@ -3164,7 +3164,7 @@ export default function WalletPage() {
                               {openBtc && (
                                 <div className="rounded-xl border border-brand-500/25 bg-brand-500/5 px-4 py-3 space-y-2">
                                   <div className="text-sm font-semibold text-white">
-                                    BTC → FBTC
+                                    BTC → fBTC
                                     {openBtc.amountSats >= 546
                                       ? ` · ${(openBtc.amountSats / 1e8).toFixed(8)} BTC`
                                       : ''}
@@ -3462,7 +3462,7 @@ export default function WalletPage() {
                         }
                       } else if (asset.id === 'feth') {
                         const fethTok = account?.assets?.tokens?.find(
-                          (t) => t.currency === 'ETH' || t.symbol === 'FETH',
+                          (t) => t.currency === 'ETH' || t.symbol === 'FETH' || t.symbol === 'fETH',
                         )
                         balanceLabel = (fethTok?.balance ?? 0).toLocaleString(undefined, {
                           maximumFractionDigits: 6,
@@ -3470,7 +3470,7 @@ export default function WalletPage() {
                         if (network.networkId !== 2300 && fethTok && !fethTok.hasTrustLine) {
                           detail = (
                             <span>
-                              Need trust line — open Bridge · FETH
+                              Need trust line — open Bridge · fETH
                             </span>
                           )
                         } else if (!fethTok) {
@@ -3490,7 +3490,7 @@ export default function WalletPage() {
                         }
                       } else if (asset.id === 'fbtc') {
                         const fbtcTok = account?.assets?.tokens?.find(
-                          (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC',
+                          (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC' || t.symbol === 'fBTC',
                         )
                         balanceLabel = (account?.assets?.fbtc?.balance ?? fbtcTok?.balance ?? 0).toLocaleString(undefined, {
                           maximumFractionDigits: 8,
@@ -3499,11 +3499,11 @@ export default function WalletPage() {
                           detail =
                             (fbtcTok.balance ?? 0) > 0
                               ? asset.subtitle
-                              : 'SPV ready — Bridge BTC → FBTC (no trust line)'
+                              : 'SPV ready — Bridge BTC → fBTC (no trust line)'
                         } else if (fbtcTok && !fbtcTok.hasTrustLine) {
                           detail = (
                             <span>
-                              Need trust line — open Bridge · BTC → FBTC
+                              Need trust line — open Bridge · BTC → fBTC
                             </span>
                           )
                         } else if (!fbtcTok) {
@@ -4064,13 +4064,13 @@ export default function WalletPage() {
                   </p>
                   <p className="text-xs text-slate-500 leading-relaxed">
                     {receiveAssetId === 'eth'
-                      ? 'Native Ethereum address (Sepolia testnet). Same 0x for USDC. Fund ETH for gas and for bridging to FETH.'
+                      ? 'Native Ethereum address (Sepolia testnet). Same 0x for USDC. Fund ETH for gas and for bridging to fETH.'
                       : receiveAssetId === 'usdc'
-                        ? 'USDC on Ethereum (Sepolia). Same 0x as your ETH address — only send Sepolia USDC here, then Bridge → F-USDC.'
+                        ? 'USDC on Ethereum (Sepolia). Same 0x as your ETH address — only send Sepolia USDC here, then Bridge → fUSDC.'
                       : receiveAssetId === 'bnb'
                         ? 'Same 0x as ETH. On BSC testnet this receives BNB. There is no public Falcon dest-lock for BNB.'
                       : receiveAssetId === 'btc'
-                        ? 'Native Bitcoin Testnet4 address (mempool.space/testnet4). Send Testnet4 BTC here to hold, send, or bridge to FBTC (BTC4 BitVM2).'
+                        ? 'Native Bitcoin Testnet4 address (mempool.space/testnet4). Send Testnet4 BTC here to hold, send, or bridge to fBTC (BTC4 BitVM2).'
                       : receiveAssetId === 'xrp'
                         ? 'Classic XRP Ledger (today’s XRPL). Separate r… from Falcon. Fund via XRPL testnet faucet.'
                         : 'Native multi-chain deposit address.'}
@@ -4229,11 +4229,11 @@ export default function WalletPage() {
                               : sendAsset === 'xrp'
                                 ? 'Send XRP (classic XRPL testnet)'
                                 : sendAsset === 'fbtc'
-                                  ? 'Send FBTC'
+                                  ? 'Send fBTC'
                                   : sendAsset === 'feth'
-                                    ? 'Send FETH'
+                                    ? 'Send fETH'
                                     : sendAsset === 'fusdc'
-                                      ? 'Send F-USDC'
+                                      ? 'Send fUSDC'
                                       : 'Send FPL'}
                     </h3>
                   </div>
@@ -4252,21 +4252,21 @@ export default function WalletPage() {
                       onClick={() => { setSendAsset('fusdc'); setSendAmount(''); setError(null) }}
                       className={`flex-1 py-2 ${sendAsset === 'fusdc' ? 'bg-amber-500/10 text-amber-400' : 'text-slate-500'}`}
                     >
-                      F-USDC
+                      fUSDC
                     </button>
                     <button
                       type="button"
                       onClick={() => { setSendAsset('feth'); setSendAmount(''); setError(null) }}
                       className={`flex-1 py-2 ${sendAsset === 'feth' ? 'bg-sky-500/10 text-sky-400' : 'text-slate-500'}`}
                     >
-                      FETH
+                      fETH
                     </button>
                     <button
                       type="button"
                       onClick={() => { setSendAsset('fbtc'); setSendAmount(''); setError(null) }}
                       className={`flex-1 py-2 ${sendAsset === 'fbtc' ? 'bg-orange-500/10 text-orange-400' : 'text-slate-500'}`}
                     >
-                      FBTC
+                      fBTC
                     </button>
                   </div>
                   )}
@@ -4423,9 +4423,9 @@ export default function WalletPage() {
                           Amount (
                           {{
                             falcon: 'FPL',
-                            fusdc: 'F-USDC',
-                            feth: 'FETH',
-                            fbtc: 'FBTC',
+                            fusdc: 'fUSDC',
+                            feth: 'fETH',
+                            fbtc: 'fBTC',
                             fbnb: 'FBNB',
                             btc: 'BTC',
                             bnb: 'BNB',
@@ -4460,7 +4460,7 @@ export default function WalletPage() {
                         {account?.exists && sendAsset === 'fusdc' && (
                           <div className="flex justify-between text-xs text-slate-600">
                             <span>
-                              Available: {(account.assets?.fusdc?.balance ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} F-USDC
+                              Available: {(account.assets?.fusdc?.balance ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })} fUSDC
                             </span>
                             {(account.assets?.fusdc?.balance ?? 0) > 0 && (
                               <button
@@ -4479,14 +4479,14 @@ export default function WalletPage() {
                               Available:{' '}
                               {(
                                 account.assets?.tokens?.find(
-                                  (t) => t.currency === 'ETH' || t.symbol === 'FETH',
+                                  (t) => t.currency === 'ETH' || t.symbol === 'FETH' || t.symbol === 'fETH',
                                 )?.balance ?? 0
                               ).toLocaleString(undefined, { maximumFractionDigits: 6 })}{' '}
-                              FETH
+                              fETH
                             </span>
                             {(
                               account.assets?.tokens?.find(
-                                (t) => t.currency === 'ETH' || t.symbol === 'FETH',
+                                (t) => t.currency === 'ETH' || t.symbol === 'FETH' || t.symbol === 'fETH',
                               )?.balance ?? 0
                             ) > 0 && (
                               <button
@@ -4495,7 +4495,7 @@ export default function WalletPage() {
                                   setSendAmount(
                                     String(
                                       account.assets!.tokens!.find(
-                                        (t) => t.currency === 'ETH' || t.symbol === 'FETH',
+                                        (t) => t.currency === 'ETH' || t.symbol === 'FETH' || t.symbol === 'fETH',
                                       )!.balance,
                                     ),
                                   )
@@ -4514,15 +4514,15 @@ export default function WalletPage() {
                               {(
                                 account.assets?.fbtc?.balance ??
                                 account.assets?.tokens?.find(
-                                  (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC',
+                                  (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC' || t.symbol === 'fBTC',
                                 )?.balance ?? 0
                               ).toLocaleString(undefined, { maximumFractionDigits: 8 })}{' '}
-                              FBTC
+                              fBTC
                             </span>
                             {(
                               account.assets?.fbtc?.balance ??
                               account.assets?.tokens?.find(
-                                (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC',
+                                (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC' || t.symbol === 'fBTC',
                               )?.balance ?? 0
                             ) > 0 && (
                               <button
@@ -4532,7 +4532,7 @@ export default function WalletPage() {
                                     String(
                                       account.assets?.fbtc?.balance ??
                                       account.assets!.tokens!.find(
-                                        (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC',
+                                        (t) => t.currency === 'BTC4' || t.currency === 'BTC' || t.symbol === 'FBTC' || t.symbol === 'fBTC',
                                       )?.balance ?? 0,
                                     ),
                                   )
@@ -4687,7 +4687,7 @@ export default function WalletPage() {
                         )}
                         {network.networkId !== 2300 && sendAsset === 'fusdc' && account?.assets?.fusdc?.hasTrustLine === false && (
                           <p className="text-xs text-amber-400">
-                            Recipient and sender both need a F-USDC trust line. Add yours on{' '}
+                            Recipient and sender both need a fUSDC trust line. Add yours on{' '}
                             <Link href="/wallet?bridge=1" className="text-brand-400 underline">Bridge</Link>
                             {' or '}
                             <Link href="/swap" className="text-brand-400 underline">Swap</Link>.
@@ -4697,7 +4697,7 @@ export default function WalletPage() {
                       <p className="text-xs text-slate-500">
                         {network.networkId === 2300
                           ? 'Peer-to-peer on Falcon PL — not a bridge.'
-                          : 'Peer-to-peer transfer on Falcon PL — not a bridge. Recipient needs a F-USDC trust line to receive F-USDC.'}
+                          : 'Peer-to-peer transfer on Falcon PL — not a bridge. Recipient needs a fUSDC trust line to receive fUSDC.'}
                       </p>
                       <button
                         type="submit"
@@ -4752,13 +4752,13 @@ export default function WalletPage() {
                     // Make Falcon vs native deposit crystal clear in the picker
                     subtitle:
                       a.id === 'fusdc'
-                        ? 'Falcon r… address (already-minted F-USDC)'
+                        ? 'Falcon r… address (already-minted fUSDC)'
                         : a.id === 'feth'
-                          ? 'Falcon r… (already-minted FETH)'
+                          ? 'Falcon r… (already-minted fETH)'
                           : a.id === 'fbnb'
                             ? 'Falcon r… (already-minted FBNB)'
                             : a.id === 'fbtc'
-                              ? 'Falcon r… (already-minted FBTC)'
+                              ? 'Falcon r… (already-minted fBTC)'
                               : a.subtitle,
                     balance: bal,
                     canSend: a.canSend && a.status === 'live',
@@ -4779,7 +4779,7 @@ export default function WalletPage() {
                     symbol: c.symbol,
                     subtitle:
                       c.id === 'usdc'
-                        ? 'Ethereum 0x — same as ETH · then Bridge → F-USDC'
+                        ? 'Ethereum 0x — same as ETH · then Bridge → fUSDC'
                         : c.id === 'eth'
                           ? 'Ethereum 0x address'
                           : c.id === 'bnb'
@@ -4875,7 +4875,7 @@ export default function WalletPage() {
                       ((tx.type === 'Payment' || tx.type === 'AssetPay') && !incoming)
                     const isTransfer = tx.type === 'Payment' || tx.type === 'AssetPay'
                     const ok = tx.result === 'tesSUCCESS'
-                    const asset = tx.amountAsset ?? (isDepositClaim || isBridgeBurn ? 'FBTC' : 'FPL')
+                    const asset = tx.amountAsset ?? (isDepositClaim || isBridgeBurn ? 'fBTC' : 'FPL')
                     const amt = tx.amount
                     let amountLabel: string
                     if (!ok) {
@@ -4919,11 +4919,11 @@ export default function WalletPage() {
                       }
                     } else if (isDepositClaim) {
                       action = 'BTC deposit claim'
-                      party = 'FBTC minted'
+                      party = 'fBTC minted'
                       partyIsName = false
                     } else if (tx.type === 'BTCBridgeBurn') {
                       action = 'BTC bridge out'
-                      party = 'FBTC burned'
+                      party = 'fBTC burned'
                       partyIsName = false
                     } else if (tx.type === 'BTCWithdrawFinalize') {
                       action = 'BTC withdraw finalize'

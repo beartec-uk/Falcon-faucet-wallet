@@ -588,7 +588,7 @@ export async function pegOutDestLock(opts: {
     if (!included) {
       throw new Error(
         'Burn is signed and queued, but Falcon PL has not sealed a new ledger yet (network may be stalled). ' +
-          `Your ${opts.asset === 'USDC' ? 'F-USDC' : 'FETH'} has not been debited. Keep this panel open and press ` +
+          `Your ${opts.asset === 'USDC' ? 'fUSDC' : 'fETH'} has not been debited. Keep this panel open and press ` +
           'Bridge out again later — it re-uses the same signed burn and cannot burn twice.',
       )
     }

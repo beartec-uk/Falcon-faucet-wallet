@@ -244,13 +244,13 @@ const ROUTE_SUPPORTS_OUT: Record<BridgeRouteId, boolean> = {
 function routeInLabel(id: BridgeRouteId): string {
   switch (id) {
     case 'fusdc-sepolia':
-      return 'USDC → F-USDC'
+      return 'USDC → fUSDC'
     case 'feth-sepolia':
-      return 'ETH → FETH'
+      return 'ETH → fETH'
     case 'fbnb-bsc':
       return 'BNB → FBNB'
     case 'fbtc-btc':
-      return 'BTC → FBTC'
+      return 'BTC → fBTC'
     case 'fxrp-xrpl':
       return 'XRP → FXRP'
   }
@@ -259,13 +259,13 @@ function routeInLabel(id: BridgeRouteId): string {
 function routeOutLabel(id: BridgeRouteId): string {
   switch (id) {
     case 'fusdc-sepolia':
-      return 'F-USDC → USDC'
+      return 'fUSDC → USDC'
     case 'feth-sepolia':
-      return 'FETH → ETH'
+      return 'fETH → ETH'
     case 'fbnb-bsc':
       return 'FBNB → BNB'
     case 'fbtc-btc':
-      return 'FBTC → BTC'
+      return 'fBTC → BTC'
     case 'fxrp-xrpl':
       return 'FXRP → XRP'
   }
@@ -847,7 +847,7 @@ export default function BridgeDepositPanel({
         purgeDeadSpvStorage([falconId, wallet.address])
         setSpvPending(null)
         setError(
-          'This Bitcoin deposit already minted FBTC — nothing to claim. Do not re-send BTC.',
+          'This Bitcoin deposit already minted fBTC — nothing to claim. Do not re-send BTC.',
         )
         return
       }
@@ -1486,17 +1486,17 @@ export default function BridgeDepositPanel({
 
     const amt = parseFloat(withdrawAmount)
     if (!Number.isFinite(amt) || amt <= 0) {
-      setError('Enter a valid F-USDC amount')
+      setError('Enter a valid fUSDC amount')
       return
     }
     if ((fusdcLive ?? 0) < amt) {
-      setError(`Insufficient F-USDC (have ${fmt(fusdcLive ?? 0, 4)})`)
+      setError(`Insufficient fUSDC (have ${fmt(fusdcLive ?? 0, 4)})`)
       return
     }
 
     if (
       !confirm(
-        'Legacy cleanup: this sends F-USDC back to the issuer WITHOUT a bridge memo. ' +
+        'Legacy cleanup: this sends fUSDC back to the issuer WITHOUT a bridge memo. ' +
           'It does NOT release any Sepolia USDC and cannot be reversed. ' +
           'Use "Bridge Out" instead if you want to receive Sepolia USDC. Continue?',
       )
@@ -1514,7 +1514,7 @@ export default function BridgeDepositPanel({
       const falcon_secret = await decryptSeed(wallet.encrypted, keyBytes)
       const amountStr = String(Math.round(amt * 1e6) / 1e6)
 
-      setStep('Returning F-USDC to issuer…')
+      setStep('Returning fUSDC to issuer…')
       const data = await submitFalconSequenced(({ sequence, lastLedgerSequence }) =>
         signFusdcPayment(
           {
@@ -1582,7 +1582,7 @@ export default function BridgeDepositPanel({
           `No BTC payout yet for burn #${w.burnSeq} (${btc} BTC → ${
             w.payoutAddress || wallet.btcAddress || 'your address'
           }). ` +
-            'FBTC is already burned on Falcon and is safe. The fleet redeemer must send testnet BTC with an FBTO memo before Finish/Prove can run. ' +
+            'fBTC is already burned on Falcon and is safe. The fleet redeemer must send testnet BTC with an FBTO memo before Finish/Prove can run. ' +
             'This is not a lost burn — retry Finish later (can take minutes). If it never appears, redeemer/ops is behind, not your wallet.',
         )
         return
@@ -1652,13 +1652,13 @@ export default function BridgeDepositPanel({
       }
       const amt = parseFloat(withdrawAmount)
       if (!Number.isFinite(amt) || amt <= 0) {
-        setError('Enter a valid FBTC amount')
+        setError('Enter a valid fBTC amount')
         return
       }
       // FBTC balance for bridge = SPV MPT only (what Claim mint creates)
       const avail = Math.max(0, fbtcSpvLive ?? fbtcLive ?? 0)
       if (avail + 1e-12 < amt) {
-        setError(`Insufficient FBTC (have ${fmt(avail, 8)}; need ${fmt(amt, 8)}). Use Max.`)
+        setError(`Insufficient fBTC (have ${fmt(avail, 8)}; need ${fmt(amt, 8)}). Use Max.`)
         return
       }
       const amountSats = Math.round(amt * 1e8)
@@ -1678,7 +1678,7 @@ export default function BridgeDepositPanel({
         setBusy(true)
         setError(null)
         setWithdrawResult(null)
-        setStep('Burning FBTC on Falcon PL…')
+        setStep('Burning fBTC on Falcon PL…')
         try {
           const { keyBytes } = await authenticatePasskey(wallet.credentialId, wallet.hasPrf)
           const falcon_secret = await decryptSeed(wallet.encrypted, keyBytes)
@@ -1731,7 +1731,7 @@ export default function BridgeDepositPanel({
       const avail = isEth ? (fethLive ?? 0) : fusdcAvail
       const amt = parseFloat(withdrawAmount)
       if (!Number.isFinite(amt) || amt <= 0) {
-        setError(isEth ? 'Enter a valid FETH amount' : 'Enter a valid F-USDC amount')
+        setError(isEth ? 'Enter a valid fETH amount' : 'Enter a valid fUSDC amount')
         return
       }
       const decimals = isEth ? 18 : destLockCfg.sepolia.usdc_decimals ?? 6
@@ -1749,8 +1749,8 @@ export default function BridgeDepositPanel({
       if (!resuming && avail + 1e-12 < amt) {
         setError(
           isEth
-            ? `Insufficient FETH (have ${fmt(avail, 8)})`
-            : `Insufficient F-USDC (have ${fmt(avail, 4)})`,
+            ? `Insufficient fETH (have ${fmt(avail, 8)})`
+            : `Insufficient fUSDC (have ${fmt(avail, 4)})`,
         )
         return
       }
@@ -1805,11 +1805,11 @@ export default function BridgeDepositPanel({
 
     const amt = parseFloat(withdrawAmount)
     if (!Number.isFinite(amt) || amt <= 0) {
-      setError('Enter a valid F-USDC amount')
+      setError('Enter a valid fUSDC amount')
       return
     }
     if ((fusdcLive ?? 0) < amt) {
-      setError(`Insufficient F-USDC (have ${fmt(fusdcLive ?? 0, 4)})`)
+      setError(`Insufficient fUSDC (have ${fmt(fusdcLive ?? 0, 4)})`)
       return
     }
 
@@ -1824,7 +1824,7 @@ export default function BridgeDepositPanel({
       const falcon_secret = await decryptSeed(wallet.encrypted, keyBytes)
 
       const amountStr = String(Math.round(amt * 1e6) / 1e6)
-      setStep('Returning F-USDC to bridge…')
+      setStep('Returning fUSDC to bridge…')
       const data = await submitFalconSequenced(({ sequence, lastLedgerSequence }) =>
         signBridgeWithdraw(
           {
@@ -1890,8 +1890,8 @@ export default function BridgeDepositPanel({
       depositId:
         note ||
         (claimHash
-          ? `FBTC minted — claim ${claimHash.slice(0, 12)}…`
-          : 'FBTC already minted for this deposit'),
+          ? `fBTC minted — claim ${claimHash.slice(0, 12)}…`
+          : 'fBTC already minted for this deposit'),
     })
     setTimeout(() => {
       refreshFusdcBalance()
@@ -1911,7 +1911,7 @@ const handleSpvCompleteClaim = async () => {
   }
   setBusy(true);
   setError(null);
-  setStep(isPl2300 ? 'Passkey to mint FBTC on Falcon PL…' : 'Passkey to submit BTCDepositClaim…');
+  setStep(isPl2300 ? 'Passkey to mint fBTC on Falcon PL…' : 'Passkey to submit BTCDepositClaim…');
   // Do NOT write status=claiming to localStorage until after passkey succeeds.
   // Cancelled/aborted passkey used to leave "claiming" forever → grey Claim FBTC.
   const txid = spvPending.txid;
@@ -1986,7 +1986,7 @@ const handleSpvCompleteClaim = async () => {
         }
       }
       if (!minted) throw lastWait instanceof Error ? lastWait : new Error('Claim failed')
-      finishSpvClaimSuccess(txid, minted.depositTxId, `FBTC minted — ${minted.depositTxId.slice(0, 12)}…`)
+      finishSpvClaimSuccess(txid, minted.depositTxId, `fBTC minted — ${minted.depositTxId.slice(0, 12)}…`)
       return
     }
 
@@ -1997,7 +1997,7 @@ const handleSpvCompleteClaim = async () => {
       finishSpvClaimSuccess(
         txid,
         undefined,
-        'FBTC already minted for this deposit — bridge complete',
+        'fBTC already minted for this deposit — bridge complete',
       )
       return
     }
@@ -2046,7 +2046,7 @@ const handleSpvCompleteClaim = async () => {
       return
     }
     if (isDeadSpvTxid(raw)) {
-      setError('This Bitcoin deposit already minted FBTC — nothing to claim. Do not re-send BTC.')
+      setError('This Bitcoin deposit already minted fBTC — nothing to claim. Do not re-send BTC.')
       return
     }
     if (hasOpenSpvBridge(wallet.address) && getSpvPending(wallet.address)?.txid !== raw) {
@@ -2196,7 +2196,7 @@ const handleSpvCompleteClaim = async () => {
     try {
       setStep(
         isFbtcRoute
-          ? 'Confirm passkey — send BTC and mint FBTC…'
+          ? 'Confirm passkey — send BTC and mint fBTC…'
           : 'Confirm passkey to unlock multi-chain EVM wallet…',
       )
       const { keyBytes } = await authenticatePasskey(wallet.credentialId, wallet.hasPrf)
@@ -2234,10 +2234,10 @@ const handleSpvCompleteClaim = async () => {
           setSpvPending(pending)
           setResult({
             depositHash: dep.txid,
-            depositId: 'BTC sent — minting FBTC on Falcon PL…',
+            depositId: 'BTC sent — minting fBTC on Falcon PL…',
           })
           setAmount('')
-          setStep('Waiting for Bitcoin confirmations, then minting FBTC…')
+          setStep('Waiting for Bitcoin confirmations, then minting fBTC…')
           const falcon_secret = await decryptSeed(wallet.encrypted, keyBytes)
           const minted = await pegInPlBtc({
             account: falconId,
@@ -2247,7 +2247,7 @@ const handleSpvCompleteClaim = async () => {
             amountSats: dep.amountSats,
             onStep: (m) => setStep(m),
           })
-          finishSpvClaimSuccess(dep.txid, minted.depositTxId, `FBTC minted — ${minted.depositTxId.slice(0, 12)}…`)
+          finishSpvClaimSuccess(dep.txid, minted.depositTxId, `fBTC minted — ${minted.depositTxId.slice(0, 12)}…`)
           return
         }
 
@@ -2291,7 +2291,7 @@ const handleSpvCompleteClaim = async () => {
             setDestLockJobs(listDestLockPending(falconId))
             res = {
               depositHash: d.depositHash,
-              depositId: `Locked on Sepolia (FalconQcBridgeV3). Deposit id ${d.v3DepositId}. FETH is minted automatically once the light client reaches this block; keep the deposit id — if it is not minted within 3 days it is refunded to this 0x address.`,
+              depositId: `Locked on Sepolia (FalconQcBridgeV3). Deposit id ${d.v3DepositId}. fETH is minted automatically once the light client reaches this block; keep the deposit id — if it is not minted within 3 days it is refunded to this 0x address.`,
             }
           } else {
           setStep('Queuing Falcon PL mint…')
@@ -2313,8 +2313,8 @@ const handleSpvCompleteClaim = async () => {
             depositHash: d.depositHash,
             depositId:
               queued.status === 'done'
-                ? 'FETH minted on Falcon PL'
-                : 'Locked on Sepolia — minting FETH in the background. You can bridge USDC now.',
+                ? 'fETH minted on Falcon PL'
+                : 'Locked on Sepolia — minting fETH in the background. You can bridge USDC now.',
           }
           }
         } else {
@@ -2341,7 +2341,7 @@ const handleSpvCompleteClaim = async () => {
             res = {
               depositHash: d.depositHash,
               approveHash: d.approveHash,
-              depositId: `Locked on Sepolia (FalconQcBridgeV3). Deposit id ${d.v3DepositId}. F-USDC is minted automatically once the light client reaches this block; keep the deposit id — if it is not minted within 3 days it is refunded to this 0x address.`,
+              depositId: `Locked on Sepolia (FalconQcBridgeV3). Deposit id ${d.v3DepositId}. fUSDC is minted automatically once the light client reaches this block; keep the deposit id — if it is not minted within 3 days it is refunded to this 0x address.`,
             }
           } else {
           setStep('Queuing Falcon PL mint…')
@@ -2364,8 +2364,8 @@ const handleSpvCompleteClaim = async () => {
             approveHash: d.approveHash,
             depositId:
               queued.status === 'done'
-                ? 'F-USDC minted on Falcon PL'
-                : 'Locked on Sepolia — minting F-USDC in the background. You can bridge ETH now.',
+                ? 'fUSDC minted on Falcon PL'
+                : 'Locked on Sepolia — minting fUSDC in the background. You can bridge ETH now.',
           }
           }
         }
@@ -2633,12 +2633,12 @@ const handleSpvCompleteClaim = async () => {
     const amt = parseFloat(withdrawAmount)
     const sats = Math.round(amt * 1e8)
     if (!Number.isFinite(sats) || sats < 10_000) {
-      setError('Minimum withdrawal is 0.0001 FBTC (10,000 sats).')
+      setError('Minimum withdrawal is 0.0001 fBTC (10,000 sats).')
       return
     }
     const avail = fbtcSpvLive ?? fbtcLive ?? 0
     if (amt > avail) {
-      setError(`Insufficient FBTC balance (available ${avail.toFixed(8)} FBTC).`)
+      setError(`Insufficient fBTC balance (available ${avail.toFixed(8)} fBTC).`)
       return
     }
     if (tn4OpCap && tn4OpCap.maxSingleBtc > 0 && amt > tn4OpCap.maxSingleBtc + 1e-12) {
@@ -2707,14 +2707,14 @@ const handleSpvCompleteClaim = async () => {
           ? `${balanceLoading ? '…' : balances ? fmt(balances.eth, 6) : '—'} ETH`
           : `${balanceLoading ? '…' : balances ? fmtFloor(usdcAvailRaw, 2) : '—'} USDC`
   const falconAvailLabel = isFbtcRoute
-    ? `${fusdcLoading ? '…' : fmt(fbtcSpvLive ?? fbtcLive ?? 0, 8)} FBTC`
+    ? `${fusdcLoading ? '…' : fmt(fbtcSpvLive ?? fbtcLive ?? 0, 8)} fBTC`
     : isFxrpRoute
       ? `${fusdcLoading ? '…' : fmt(fxrpLive ?? 0, 6)} FXRP`
       : isFbnbRoute
         ? `${fusdcLoading ? '…' : fmt(fbnbLive ?? 0, 6)} FBNB`
         : isFethRoute
-          ? `${fusdcLoading ? '…' : fmt(fethLive ?? 0, 6)} FETH`
-          : `${fusdcLoading ? '…' : fmt(fusdcAvail, 2)} F-USDC`
+          ? `${fusdcLoading ? '…' : fmt(fethLive ?? 0, 6)} fETH`
+          : `${fusdcLoading ? '…' : fmt(fusdcAvail, 2)} fUSDC`
   const bnbAvail = bnbBal != null ? parseFloat(bnbBal) : 0
   const btcAvail = btcBal != null ? parseFloat(btcBal) : 0
   const canUseBridge = hasEvm || hasBtc || hasXrpl || (isPl2300 && BTC_RAIL_LIVE)
@@ -2821,7 +2821,7 @@ const handleSpvCompleteClaim = async () => {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-sm font-semibold text-white">
-                          {job.asset === 'USDC' ? 'USDC → F-USDC' : 'ETH → FETH'}
+                          {job.asset === 'USDC' ? 'USDC → fUSDC' : 'ETH → fETH'}
                           {job.amountLabel ? ` · ${job.amountLabel} ${job.asset}` : ''}
                         </div>
                         <p className="text-xs text-slate-500 mt-0.5">
@@ -2838,7 +2838,7 @@ const handleSpvCompleteClaim = async () => {
                             ? job.lastError || 'Mint failed'
                             : destLockLcWaitText(job) ??
                               (job.status === 'minting'
-                                ? `Minting ${job.asset === 'USDC' ? 'F-USDC' : 'FETH'} on Falcon.`
+                                ? `Minting ${job.asset === 'USDC' ? 'fUSDC' : 'fETH'} on Falcon.`
                                 : 'Deposit in progress')}
                         </p>
                         {job.statusError ? (
@@ -3041,7 +3041,7 @@ const handleSpvCompleteClaim = async () => {
                             <Spinner /> {step ?? 'Claiming…'}
                           </>
                         ) : (
-                          'Claim FBTC'
+                          'Claim fBTC'
                         )}
                       </button>
                     ) : openBtc.status === 'waiting_confs' ||
@@ -3090,7 +3090,7 @@ const handleSpvCompleteClaim = async () => {
                   >
                     <div>
                       <div className="text-sm font-medium text-emerald-300">
-                        {job.asset === 'USDC' ? 'F-USDC minted' : 'FETH minted'}
+                        {job.asset === 'USDC' ? 'fUSDC minted' : 'fETH minted'}
                       </div>
                       <p className="text-[11px] font-mono text-slate-500 mt-0.5">
                         {job.txHash.slice(0, 12)}…
@@ -3633,8 +3633,8 @@ const handleSpvCompleteClaim = async () => {
                     <div className="flex justify-between text-xs text-slate-600">
                       <span>
                         {(fbtcSpvLive ?? fbtcLive ?? 0) > 0
-                          ? `Available ${fmt(fbtcSpvLive ?? fbtcLive ?? 0, 8)} FBTC`
-                          : 'No FBTC balance'}
+                          ? `Available ${fmt(fbtcSpvLive ?? fbtcLive ?? 0, 8)} fBTC`
+                          : 'No fBTC balance'}
                       </span>
                       {(fbtcSpvLive ?? fbtcLive ?? 0) > 0 && (
                         <button
@@ -3758,8 +3758,8 @@ const handleSpvCompleteClaim = async () => {
                   <div className="flex justify-between text-xs text-slate-600">
                     <span>
                       {(fbtcSpvLive ?? fbtcLive ?? 0) > 0
-                        ? `Available: ${fmt(fbtcSpvLive ?? fbtcLive ?? 0, 8)} FBTC`
-                        : 'No FBTC balance'}
+                        ? `Available: ${fmt(fbtcSpvLive ?? fbtcLive ?? 0, 8)} fBTC`
+                        : 'No fBTC balance'}
                     </span>
                     {(fbtcSpvLive ?? fbtcLive ?? 0) > 0 && (
                       <button
@@ -3838,9 +3838,9 @@ const handleSpvCompleteClaim = async () => {
                   />
                   <div className="flex justify-between text-xs text-slate-600">
                     {isFethRoute ? (
-                      <span>{(fethLive ?? 0) > 0 ? `Available: ${fmt(fethLive ?? 0, 8)} FETH` : 'No FETH balance'}</span>
+                      <span>{(fethLive ?? 0) > 0 ? `Available: ${fmt(fethLive ?? 0, 8)} fETH` : 'No fETH balance'}</span>
                     ) : (
-                      <span>{fusdcAvail > 0 ? `Available: ${fmt(fusdcAvail, 4)} F-USDC` : 'No F-USDC balance'}</span>
+                      <span>{fusdcAvail > 0 ? `Available: ${fmt(fusdcAvail, 4)} fUSDC` : 'No fUSDC balance'}</span>
                     )}
                     {(isFethRoute ? (fethLive ?? 0) : fusdcAvail) > 0 && (
                       <button
@@ -3887,7 +3887,7 @@ const handleSpvCompleteClaim = async () => {
                     }
                     className="mt-2 w-full py-2 rounded-xl border border-slate-700 text-slate-400 text-xs hover:bg-slate-800/60 disabled:opacity-50"
                   >
-                    {busy ? step ?? 'Working…' : 'Return F-USDC to issuer'}
+                    {busy ? step ?? 'Working…' : 'Return fUSDC to issuer'}
                   </button>
                 </details>
                 {isPl2300 && destLockCfg && wallet.evmEncrypted && (
@@ -4172,15 +4172,15 @@ const handleSpvCompleteClaim = async () => {
                 {withdrawResult.amount}{' '}
                 {isFbtcRoute
                   ? withdrawResult.btcClaimTxid
-                    ? 'FBTC burned · dest-lock Kickoff + your Bitcoin key took after CSV'
+                    ? 'fBTC burned · dest-lock Kickoff + your Bitcoin key took after CSV'
                     : isPl2300
-                      ? 'FBTC burned. Dest-lock Kickoff is on Bitcoin — wait CSV then take with your key.'
-                      : 'FBTC · shared-reserve redeem (any holder)'
+                      ? 'fBTC burned. Dest-lock Kickoff is on Bitcoin — wait CSV then take with your key.'
+                      : 'fBTC · shared-reserve redeem (any holder)'
                   : isPl2300
                     ? isFethRoute
-                      ? 'FETH burned · Sepolia ETH dest-locked to your 0x'
-                      : 'F-USDC burned · Sepolia USDC dest-locked to your 0x'
-                    : 'F-USDC · release usually under a few minutes'}
+                      ? 'fETH burned · Sepolia ETH dest-locked to your 0x'
+                      : 'fUSDC burned · Sepolia USDC dest-locked to your 0x'
+                    : 'fUSDC · release usually under a few minutes'}
               </p>
             </div>
             <button

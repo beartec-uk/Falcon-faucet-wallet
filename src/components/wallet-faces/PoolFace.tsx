@@ -155,7 +155,7 @@ export default function PoolPage() {
           if (fbtc?.token?.mptIssuanceId || fbtc?.token?.configured) {
             const spv: PairToken = {
               symbol: 'FBTC',
-              displaySymbol: 'FBTC',
+              displaySymbol: 'fBTC',
               currency: fbtc.token.currency || 'BTC',
               issuer: fbtc.token.issuer || '',
               kind: fbtc.token.kind || (fbtc.token.mptIssuanceId ? 'mpt' : 'iou'),
@@ -349,7 +349,7 @@ export default function PoolPage() {
 
       <main className="flex-1 px-4 py-8 max-w-2xl mx-auto w-full space-y-5">
         <p className="text-xs text-slate-500">
-          Public pools: F-USDC/FPL, FETH/FPL, and FBTC/FPL. FBNB is not listed.
+          Public pools: fUSDC/FPL, fETH/FPL, and fBTC/FPL. fBNB is not listed.
         </p>
         {/* Pair tabs */}
         {pairs.length > 0 && (

@@ -76,7 +76,7 @@ export async function fetchWalletAssets(
   const catalog = await loadStableTokens()
   const token = catalog[0] ?? (await loadStableToken())
   const emptyFusdc: WalletAssetBalances['fusdc'] = {
-    symbol: 'F-USDC',
+    symbol: 'fUSDC',
     balance: 0,
     currency: token.currency,
     issuer: token.issuer,
@@ -159,13 +159,13 @@ export async function fetchWalletAssets(
       const sats = mpt ? parseMptSats(mpt.MPTAmount) : 0
       const btc = sats > 0 ? sats / 1e8 : 0
       const fbtcIdx = tokens.findIndex(
-        (t) => t.symbol === 'FBTC' || t.currency === 'BTC' || t.id === 'fbtc',
+        (t) => (t.symbol === 'FBTC' || t.symbol === 'fBTC') || t.currency === 'BTC' || t.id === 'fbtc',
       )
       // Product FBTC = SPV MPT only (what Bridge Out can redeem). Do not add classic
       // BTC trust-line IOU into the FBTC balance — that confuses full SPV e2e tests.
       const fbtcRow: WalletIouBalance = {
         id: 'fbtc',
-        symbol: 'FBTC',
+        symbol: 'fBTC',
         balance: btc,
         currency: 'BTC',
         issuer: spvIssuer || (fbtcIdx >= 0 ? tokens[fbtcIdx].issuer : '') || '',
@@ -186,7 +186,7 @@ export async function fetchWalletAssets(
         if (i === (fbtcIdx >= 0 ? fbtcIdx : tokens.length - 1)) continue
         const t = tokens[i]
         if (
-          (t.currency === 'BTC' || t.symbol === 'FBTC') &&
+          (t.currency === 'BTC' || (t.symbol === 'FBTC' || t.symbol === 'fBTC')) &&
           !t.spvMpt &&
           t.id !== 'fbtc'
         ) {

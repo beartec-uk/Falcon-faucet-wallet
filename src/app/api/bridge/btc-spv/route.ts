@@ -894,7 +894,7 @@ export async function POST(req: NextRequest) {
         {
           error:
             purpose === 'redeem'
-              ? 'Reserve BTC payout is in the mempool or a new block — wait for confirmations, then Prove again. Your FBTC burn is safe.'
+              ? 'Reserve BTC payout is in the mempool or a new block — wait for confirmations, then Prove again. Your fBTC burn is safe.'
               : 'BTC deposit not confirmed yet — wait for a block. Do not re-send BTC.',
           confirmed: false,
           confirmations: 0,
@@ -1025,7 +1025,7 @@ export async function POST(req: NextRequest) {
         {
           error:
             `Falcon no longer has Bitcoin block ${blockHeight} in memory (kept headers start at ${headerFloor}). ` +
-            'It is loading that older block now. Wait, then Claim FBTC again — do not re-send BTC.',
+            'It is loading that older block now. Wait, then Claim fBTC again — do not re-send BTC.',
           waiting: true,
           headerReady: false,
           falconTipHeight: falconTipHeight || undefined,
@@ -1048,7 +1048,7 @@ export async function POST(req: NextRequest) {
           error:
             `Falcon SPV headers have not indexed Bitcoin block ${blockHeight} yet` +
             (falconTipHeight ? ` (Falcon tip ~${falconTipHeight}` + (gap ? `, ~${gap} blocks behind` : '') + ')' : '') +
-            '. Wait for the header submitter, then Claim FBTC again — do not re-send BTC.',
+            '. Wait for the header submitter, then Claim fBTC again — do not re-send BTC.',
           waiting: true,
           headerReady: false,
           falconTipHeight: falconTipHeight || undefined,

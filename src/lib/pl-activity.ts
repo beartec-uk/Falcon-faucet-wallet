@@ -5,6 +5,7 @@
 // AMM swaps) + open orders, as display-ready rows. Pure, no I/O, unit-tested.
 
 import { decimalsOf, toDecimalString } from '@/lib/explorer-api/amounts'
+import { fAssetLabel } from '@/lib/f-asset-label'
 
 type Obj = Record<string, unknown>
 
@@ -18,11 +19,7 @@ const RIPPLE_EPOCH = 946_684_800
 
 /** Wallet display name for a PL asset code. */
 export function assetLabel(asset: string): string {
-  const a = asset.toUpperCase()
-  if (a === 'BTC4') return 'FBTC'
-  if (a === 'USDC') return 'F-USDC'
-  if (a === 'ETH') return 'FETH'
-  return a || 'FPL'
+  return fAssetLabel(asset)
 }
 
 /** Base units → grouped human string using the asset's decimals (USDC 6, ETH 18, BTC/BTC4 8, FPL 0). */
