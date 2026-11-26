@@ -9,6 +9,7 @@ import { hit } from '@/lib/api-guard'
 import { mintApiKey } from '@/lib/developers/api-keys'
 import { countFreeKeysSince, insertFreeKey } from '@/lib/developers/key-store'
 import { freeMintAllowed, hashIp } from '@/lib/developers/key-policy'
+import { appendSession, cookieHeader, sessionSecret } from '@/lib/developers/key-session'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -32,7 +33,10 @@ export async function POST(req: NextRequest) {
     if (verdict === 'total') return NextResponse.json({ error: 'Free sign-ups are paused for today. Please try tomorrow.' }, { status: 429, headers: noStore })
     const { key, sha256, id } = mintApiKey()
     await insertFreeKey({ keyId: id, sha256, ipHash })
-    return NextResponse.json({ key, keyId: id, tier: 'free' }, { headers: noStore })
+    const headers: Record<string, string> = { ...noStore }
+    const sess = sessionSecret()
+    if (sess) headers['Set-Cookie'] = cookieHeader(appendSession(req.headers.get('cookie'), id, sess))
+    return NextResponse.json({ key, keyId: id, tier: 'free' }, { headers })
   } catch (e) {
     console.error('falcon-cloud free key failed:', (e as Error).message)
     return NextResponse.json({ error: 'Could not create a key. Please try again.' }, { status: 500, headers: noStore })

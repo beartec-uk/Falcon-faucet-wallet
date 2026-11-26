@@ -16,7 +16,7 @@ export default function GatewayDocs() {
       </p>
       <Section title="Authentication">
         <p>Every RPC call needs an API key. Send it as <span className="font-mono">Authorization: Bearer fplk_…</span> or <span className="font-mono">X-API-Key: fplk_…</span>.</p>
-        <p>Keys are shown once when issued and stored only as a SHA-256 hash. Keep them server-side; never ship a key in browser code or a public repo. Every plan, including Free, needs a key. Keys are issued on request through BEARTEC: see <A href="/developers/api-keys">get an API key</A>.</p>
+        <p>Keys are shown once when issued and stored only as a SHA-256 hash. Keep them server-side; never ship a key in browser code or a public repo. Every plan, including Free, needs a key. Get or revoke a key on <A href="/developers/api-keys">Get an API key</A>.</p>
       </Section>
       <Section title="Endpoints">
         <Table head={['Route', 'Key', 'Notes']} rows={GATEWAY_ROUTES.map((r) => [`${r.method} ${r.path}`, r.auth ? 'yes' : 'no', r.note])} />
@@ -24,12 +24,16 @@ export default function GatewayDocs() {
       <Section title="Browser calls (CORS)">
         <p data-testid="gateway-cors">Browser requests are accepted only from approved origins: {GATEWAY_CORS_ORIGINS.map((o) => <span key={o} className="font-mono mr-2">{o}</span>)}. Call the gateway from your own server for anything else.</p>
       </Section>
+      <Section title="Streaming">
+        <p data-testid="gateway-stream">Live book, trades and ticker updates are available as server-sent events at <span className="font-mono">GET /v1/stream?channels=book:BTC4-FPL,trades:BTC4-FPL,ticker:BTC4-FPL</span>. Send your API key as <span className="font-mono">Authorization: Bearer</span>, or first call <span className="font-mono">POST /v1/stream/session</span> and use the short-lived <span className="font-mono">?ticket=</span> (EventSource cannot set headers). Opening a stream costs 1 unit, then 1 unit per minute it stays open. Free keys may hold 2 streams at once (Builder 4, Scale 8).</p>
+      </Section>
       <Section title="Not supported yet">
         <ul className="list-disc pl-5 space-y-1" data-testid="gateway-not-supported">
           <li>Batch requests (a JSON array) return HTTP 400. Send one request per call.</li>
-          <li>There is no WebSocket or subscription endpoint. Poll instead.</li>
         </ul>
-        <p className="text-xs text-slate-400">Both are planned for a later release.</p>
+      </Section>
+      <Section title="Time quality">
+        <p data-testid="gateway-time-quality">Candles, 24 h ticker stats and historical fill times use observer arrival, not verified on-chain UTC. Treat them as estimated.</p>
       </Section>
       <Section title="Allowed methods">
         <p>Read methods plus transaction submit. Node admin and operator calls are never exposed.</p>

@@ -126,3 +126,37 @@ export async function countFreeKeysSince(ipHash: string, since: Date): Promise<{
     FROM falcon_cloud_keys WHERE tier = 'free' AND checkout_session_id IS NULL AND created_at > ${since.toISOString()}`
   return { ip: Number(rows[0]?.ip ?? 0), total: Number(rows[0]?.total ?? 0) }
 }
+
+export interface ManagedKey {
+  keyId: string
+  tier: string | null
+  disabled: boolean
+  createdAt: string
+}
+
+export async function listKeysByIds(ids: string[]): Promise<ManagedKey[]> {
+  if (ids.length === 0) return []
+  await ensure()
+  const rows = await getSql()`SELECT key_id, tier, disabled, created_at
+    FROM falcon_cloud_keys WHERE key_id = ANY(${ids}) ORDER BY created_at DESC`
+  return (rows as { key_id: string; tier: string | null; disabled: boolean; created_at: string }[]).map((r) => ({
+    keyId: r.key_id, tier: r.tier, disabled: !!r.disabled, createdAt: r.created_at,
+  }))
+}
+
+/** Disable one key by its public id. Returns true if a row changed. */
+export async function disableKeyById(keyId: string): Promise<boolean> {
+  await ensure()
+  const rows = await getSql()`UPDATE falcon_cloud_keys SET disabled = TRUE, updated_at = now()
+    WHERE key_id = ${keyId} AND disabled = FALSE RETURNING key_id`
+  return rows.length > 0
+}
+
+/** Look up a key by its stored SHA-256 (from a pasted plaintext). Never returns the hash. */
+export async function findKeyBySha256(sha256: string): Promise<ManagedKey | null> {
+  await ensure()
+  const rows = await getSql()`SELECT key_id, tier, disabled, created_at FROM falcon_cloud_keys WHERE sha256 = ${sha256} LIMIT 1`
+  const r = rows[0] as { key_id: string; tier: string | null; disabled: boolean; created_at: string } | undefined
+  if (!r) return null
+  return { keyId: r.key_id, tier: r.tier, disabled: !!r.disabled, createdAt: r.created_at }
+}
