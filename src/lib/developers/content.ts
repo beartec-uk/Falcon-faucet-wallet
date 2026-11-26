@@ -1,6 +1,6 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
-// Developer portal content. Gateway facts mirror Falcon-PL `falcon-pl-rs/tools/fpl-gateway`
-// (PR #17, not deployed). Explorer endpoints are read from the live OpenAPI spec.
+// Developer portal content. Gateway facts mirror Falcon-PL `falcon-pl-rs/tools/fpl-gateway`.
+// Explorer endpoints are read from the live OpenAPI spec.
 import { openapi } from '@/lib/explorer-api/openapi'
 
 /** Live public gateway URL. */
@@ -44,12 +44,15 @@ export function formatGbp(n: number): string {
 export type GatewayMethod = { name: string; params: string; returns: string; units: number }
 
 export const GATEWAY_METHODS: GatewayMethod[] = [
-  { name: 'fpl_status', params: '—', returns: 'Brief chain status (tip height, rails). Never includes the account dump.', units: 1 },
+  { name: 'fpl_status', params: '—', returns: 'Short chain status: tip height, version and a slim rails summary. Never the account or AMM dump.', units: 1 },
   { name: 'fpl_health', params: 'warnings? (0–64)', returns: 'Node health snapshot (falcon.health.v1).', units: 1 },
   { name: 'fpl_getAccount', params: 'account', returns: 'Sequence, balance, claimable, assets.', units: 1 },
   { name: 'fpl_orderBook', params: 'pair, levels? (≤200)', returns: 'Order book depth and pool spot.', units: 1 },
   { name: 'fpl_openOrders', params: 'account', returns: "An account's open orders.", units: 1 },
-  { name: 'fpl_fills', params: 'pair?, account?, limit? (≤200)', returns: 'Recent fills, newest first.', units: 1 },
+  { name: 'fpl_fills', params: 'pair?, account?, from?, to?, cursor?, limit? (≤500)', returns: 'Trade history, newest first, with a cursor for the next page. Times are observer arrival, not verified UTC.', units: 1 },
+  { name: 'fpl_pairs', params: '—', returns: 'Listed markets (BTC4-FPL, USDC-FPL, ETH-FPL) and coverage.', units: 1 },
+  { name: 'fpl_ticker', params: 'pair?', returns: '24 h last, open, high, low, change and volume (observer time). All pairs if omitted.', units: 1 },
+  { name: 'fpl_candles', params: 'pair, interval (1m/5m/15m/1h/4h/1d), from?, to?, limit? (≤500)', returns: 'OHLCV candles. Times are observer arrival, not verified UTC.', units: 1 },
   { name: 'fpl_submitTx', params: 'tx (signed transaction object)', returns: '{ msg } on acceptance into the mempool.', units: 5 },
 ]
 
@@ -71,6 +74,8 @@ export const GATEWAY_ROUTES: { method: string; path: string; auth: boolean; note
   { method: 'GET', path: '/v1/usage', auth: true, note: 'Your key’s month-to-date usage and limits' },
   { method: 'GET', path: '/v1/health', auth: false, note: 'Gateway and node liveness' },
   { method: 'GET', path: '/v1/tiers', auth: false, note: 'Current tier table' },
+  { method: 'POST', path: '/v1/stream/session', auth: true, note: 'Mint a short-lived ticket for SSE (not the API key)' },
+  { method: 'GET', path: '/v1/stream', auth: true, note: 'SSE: book, trades and ticker. Send the API key or ?ticket=' },
 ]
 
 export const EXAMPLES = {
@@ -146,6 +151,6 @@ export const DEV_PAGES: { href: string; title: string; desc: string }[] = [
   { href: '/developers/gateway', title: 'Falcon Cloud RPC gateway', desc: 'API keys, JSON-RPC methods, examples, errors and 429 handling.' },
   { href: '/developers/explorer-api', title: 'Explorer API', desc: 'Public read-only REST API for blocks, accounts, validators and the order book.' },
   { href: '/developers/pricing', title: 'Pricing', desc: 'Free, Builder and Scale. Testnet only.' },
-  { href: '/developers/api-keys', title: 'Get an API key', desc: 'Keys are issued on request through BEARTEC.' },
+  { href: '/developers/api-keys', title: 'Get an API key', desc: 'Free keys are self-serve. List and revoke them here.' },
   { href: '/developers/sdk', title: 'Falcon Sign SDK', desc: 'Coming soon, Apache-2.0.' },
 ]

@@ -13,7 +13,7 @@ export default function FreeKeyButton() {
     try {
       const r = await fetch('/api/falcon-cloud/free-key', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ acceptTerms: true }) })
       const j = await r.json().catch(() => ({}))
-      if (r.ok && j.key) setKey(j.key)
+      if (r.ok && j.key) { setKey(j.key); window.dispatchEvent(new Event('falcon-cloud-keys-changed')) }
       else setErr(j.error ?? 'Could not create a key.')
     } catch { setErr('Could not create a key.') }
     setBusy(false)

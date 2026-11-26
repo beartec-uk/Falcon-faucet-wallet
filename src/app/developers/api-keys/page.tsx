@@ -2,6 +2,7 @@
 import ContentPage, { Section } from '@/components/content/ContentPage'
 import { DevNav, TestnetNotice } from '@/components/developers/DevBits'
 import FreeKeyButton from '@/components/developers/FreeKeyButton'
+import KeyManager from '@/components/developers/KeyManager'
 import { pageMeta } from '@/lib/seo'
 
 export const metadata = pageMeta('/developers/api-keys', 'Get an API key', 'Get a Falcon Cloud RPC API key.')
@@ -14,6 +15,10 @@ export default function ApiKeysPage() {
       <Section title="Free plan">
         <p data-testid="api-keys-free">Every plan, including Free, needs an API key. Get a Free key instantly, no card needed. Your key is shown once; keep it private. We store only a hash.</p>
         <FreeKeyButton />
+      </Section>
+      <Section title="Your keys">
+        <p data-testid="api-keys-manage">Keys attached to this browser are listed below. You can revoke one here; it stops working on the gateway within about a minute. We only store a hash, so we cannot show the secret again. If you minted a key in another browser, paste it to attach or revoke it.</p>
+        <KeyManager />
       </Section>
       <Section title="Builder and Scale">
         <p>Paid plans are monthly subscriptions by card checkout on the <a className="text-amber-300 hover:underline" href="/developers/pricing">pricing page</a>. Your key is shown once when you return from checkout. If a subscription is cancelled or a payment fails, its key stops working.</p>

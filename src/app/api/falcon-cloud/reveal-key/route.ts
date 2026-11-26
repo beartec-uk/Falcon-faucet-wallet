@@ -6,6 +6,7 @@ import { isOriginAllowed } from '@/lib/origin'
 import { isCheckoutSessionId, revealSecret } from '@/lib/developers/api-keys'
 import { pgKeyRepo } from '@/lib/developers/key-store'
 import { revealKeyOnce } from '@/lib/developers/key-service'
+import { appendSession, cookieHeader, sessionSecret } from '@/lib/developers/key-session'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -21,7 +22,12 @@ export async function POST(req: NextRequest) {
   if (!secret) return NextResponse.json({ error: 'Key delivery not configured' }, { status: 503 })
   try {
     const r = await revealKeyOnce(pgKeyRepo, body.sessionId, secret)
-    return NextResponse.json(r, { headers: noStore })
+    const headers: Record<string, string> = { ...noStore }
+    const sess = sessionSecret()
+    if (sess && r.status === 'ready' && r.keyId) {
+      headers['Set-Cookie'] = cookieHeader(appendSession(req.headers.get('cookie'), r.keyId, sess))
+    }
+    return NextResponse.json(r, { headers })
   } catch (e) {
     console.error('falcon-cloud reveal failed:', (e as Error).message)
     return NextResponse.json({ error: 'Could not load your key. Please try again.' }, { status: 500, headers: noStore })

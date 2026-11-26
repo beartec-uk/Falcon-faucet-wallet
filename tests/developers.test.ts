@@ -86,17 +86,17 @@ describe('api key feature flag', () => {
 
 describe('gateway docs', () => {
   it('only read methods plus submit; no admin/ctl', () => {
-    expect(GATEWAY_METHODS.map((m) => m.name)).toEqual(['fpl_status', 'fpl_health', 'fpl_getAccount', 'fpl_orderBook', 'fpl_openOrders', 'fpl_fills', 'fpl_submitTx'])
+    expect(GATEWAY_METHODS.map((m) => m.name)).toEqual(['fpl_status', 'fpl_health', 'fpl_getAccount', 'fpl_orderBook', 'fpl_openOrders', 'fpl_fills', 'fpl_pairs', 'fpl_ticker', 'fpl_candles', 'fpl_submitTx'])
     for (const m of GATEWAY_METHODS) expect(m.name).not.toMatch(/seal|admin|drop|snapshot|reset|vault|rail/i)
   })
   it('gateway docs are live: no preview / provisional wording', () => {
     for (const f of devFiles) expect(readFileSync(f, 'utf8'), relative(root, f)).not.toMatch(/not live|provisional|preview|placeholder/i)
     expect(GATEWAY_URL).toBe('https://rpc.falcon-fpl.com')
   })
-  it('states batch + WebSocket unsupported and CORS approved origins only', () => {
+  it('states batch is unsupported, documents SSE streaming and CORS approved origins only', () => {
     const g = read('src/app/developers/gateway/page.tsx')
     expect(g).toMatch(/Batch requests[\s\S]*400/)
-    expect(g).toMatch(/no WebSocket/)
+    expect(g).toMatch(/\/v1\/stream/)
     expect(g).toMatch(/only from approved origins/)
     expect(GATEWAY_CORS_ORIGINS).toEqual(['https://falcon-fpl.com', 'https://www.beartec.uk'])
     expect(GATEWAY_ERRORS.find((e) => e.code === -32600)?.http).toBe(400)
