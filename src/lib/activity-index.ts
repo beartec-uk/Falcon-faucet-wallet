@@ -14,6 +14,7 @@ import { ACTIVITY_CONFIG } from '@/config/activity'
 import { TRACKER_CONFIG } from '@/config/tracker'
 import { getSql, isDbConfigured } from '@/lib/db'
 import { big, toFloat } from '@/lib/pl-exact-json'
+import { scoringPricesFpl } from '@/lib/scoring-prices'
 import { ASSET_DECIMALS, buildRails, type LpPosition, type PoolSample, type Transfer } from '@/lib/rails-pools'
 
 type Obj = Record<string, unknown>
@@ -200,11 +201,9 @@ export function activityStore(): ActivityStore {
 
 // ── Pure parts ─────────────────────────────────────────────────────────────
 
-/** FPL per whole unit of each asset, from the lend markets' on-ledger price. */
-export function pricesFpl(st: Obj): Record<string, number> {
-  const out: Record<string, number> = { FPL: 1 }
-  for (const m of arr(st.defi_markets)) out[s(m.asset)] = Number(m.price_fpl) || 0
-  return out
+/** FPL per whole unit of each asset: stored lend price until the live-price switch, then the deepest pool. */
+export function pricesFpl(st: Obj, now = 0): Record<string, number> {
+  return scoringPricesFpl(st, now)
 }
 
 export function exclusionSet(st: Obj): Set<string> {
@@ -235,7 +234,7 @@ export function poolSamplesFromStatus(st: Obj, now: number): PoolSample[] {
 }
 
 /** FPL value of an account's LP positions and lend supply, from current reserves / prices. */
-export function positionValues(st: Obj, snap: AccountSnapshot): { lp: number; lend: number } {
+export function positionValues(st: Obj, snap: AccountSnapshot, now = 0): { lp: number; lend: number } {
   const pools = new Map(arr(st.defi_pools).map((p) => [s(p.id), p]))
   let lp = 0
   for (const x of snap.lp) {
@@ -245,7 +244,7 @@ export function positionValues(st: Obj, snap: AccountSnapshot): { lp: number; le
     if (sup <= 0n) continue
     lp += (toFloat(big(x.lp) * 1_000_000n / sup, 6)) * Number(big(p.reserve_a)) * 2
   }
-  const price = pricesFpl(st)
+  const price = pricesFpl(st, now)
   let lend = 0
   for (const x of snap.lend) lend += toFloat(x.shares, ASSET_DECIMALS[x.asset] ?? 0) * (price[x.asset] ?? 0)
   return { lp, lend }
@@ -282,7 +281,7 @@ export async function indexActivity(st: Obj, snaps: AccountSnapshot[], now: numb
   const samples = poolSamplesFromStatus(st, now)
   await store.addPoolSamples(samples)
   const prev = new Map((await store.accounts()).map((a) => [a.account, a]))
-  const vals = new Map(snaps.map((x) => [x.account, positionValues(st, x)]))
+  const vals = new Map(snaps.map((x) => [x.account, positionValues(st, x, now)]))
   const next = snaps.map((x) => stepAccount(prev.get(x.account), x, vals.get(x.account)!, now))
   await store.putAccounts(next)
   await store.addActiveDays(activeDaysFrom(snaps, prev, vals, ev.filter((e) => !known.has(e.id)), now))
