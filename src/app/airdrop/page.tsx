@@ -112,7 +112,7 @@ export default function AirdropPage() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider text-brand-400">
-                Falcon PL 2300 · Community &amp; Rewards Hub
+                Falcon testnet · Community &amp; Rewards Hub
               </div>
               <h1 className="text-2xl font-bold text-white mt-0.5">
                 Airdrop, Leaderboards &amp; Epoch Rewards
@@ -355,7 +355,7 @@ export default function AirdropPage() {
                     </div>
                   ) : (
                     <p className="text-xs text-slate-400">
-                      No scored activity yet on this account. Bridge, swap, provide liquidity, lend, or claim from the faucet on testnet 2300 to start scoring.
+                      No scored activity yet on this account. Bridge, swap, provide liquidity, lend, or claim from the faucet on the Falcon testnet to start scoring.
                     </p>
                   )}
                 </div>

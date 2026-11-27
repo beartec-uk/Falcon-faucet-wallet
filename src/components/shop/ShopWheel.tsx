@@ -333,6 +333,7 @@ export default function ShopWheel({
             >
               <span className="sfw-media">
                 {item.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- Shopify CDN product shots, already sized by the Storefront API; next/image would need remotePatterns + re-encode
                   <img
                     src={item.image}
                     alt=""

@@ -2,7 +2,7 @@
 'use client'
 
 /**
- * /validator: run a Falcon PL 2300 node (one-line installer), requirements, live seats,
+ * /validator: run a Falcon testnet node (one-line installer), requirements, live seats,
  * validator application status, Scott's admission queue, and how each node type is paid (rewards v2).
  * Read-only: no keys or signing on this page. The admission itself is Scott's on-chain ApproveValidator.
  */
@@ -162,7 +162,7 @@ export default function ValidatorPage() {
             Run a <span className="text-cyan-400">Falcon PL node</span>
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Public testnet 2300{data ? ` · ${data.product} · tip ${data.tip.toLocaleString()} · epoch ${data.epoch}` : ''}
+            Public Falcon testnet{data ? ` · ${data.product} · tip ${data.tip.toLocaleString()} · epoch ${data.epoch}` : ''}
             {data ? ` · ${active.filter((x) => x.online).length} online · ${active.length} bonded seats` : ''}
           </p>
           <p className="mt-1 text-xs text-slate-500">

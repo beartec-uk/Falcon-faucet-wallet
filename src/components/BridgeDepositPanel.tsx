@@ -119,7 +119,7 @@ import { parseEvmAddressFromScan } from '@/lib/parse-evm-address'
 import { V3RefundClaim } from '@/components/V3RefundClaim'
 import { PendingWithdrawals } from '@/components/PendingWithdrawals'
 import { plAccountId } from '@/lib/pl-names'
-import { BTC_RAIL_LIVE, pegInPlBtc, pegOutPlBtc } from '@/lib/pl-btc-rail'
+import { BTC_RAIL_LIVE, pegInPlBtc } from '@/lib/pl-btc-rail'
 import { hasBtcWallet, provisionBtcWalletForStoredWallet } from '@/lib/create-btc-wallet'
 import {
   BITVM2_INSTANCE_ADDRESS,
@@ -486,7 +486,7 @@ export default function BridgeDepositPanel({
         : isFethRoute
           ? fethCurrency
           : falconCurrency
-  /** PL 2300 ETH/USDC/FBTC are native rails — no classic IOU TrustSet. */
+  /** Falcon testnet ETH/USDC/FBTC are native rails — no classic IOU TrustSet. */
   const skipTrustLine = isPl2300 && !isFxrpRoute
   const activeTrust = skipTrustLine
     ? true
@@ -661,6 +661,7 @@ export default function BridgeDepositPanel({
     } finally {
       setFusdcLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: keyed on the listed values only; the omitted props/derived values are stable per wallet or would re-fire the poll every render
   }, [
     networkKey,
     wallet.address,
@@ -833,6 +834,7 @@ export default function BridgeDepositPanel({
       cancelled = true
       clearInterval(t)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: keyed on the listed values only; the omitted props/derived values are stable per wallet or would re-fire the poll every render
   }, [destLockJobs.map((j) => `${j.txHash}:${j.status}`).join('|'), falconId])
 
   // Home "Open Bridge tracker" — open this exact BTC deposit without paste/search.
@@ -1077,6 +1079,7 @@ export default function BridgeDepositPanel({
     return () => {
       cancelled = true
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: keyed on the listed values only; the omitted props/derived values are stable per wallet or would re-fire the poll every render
   }, [wallet.address, falconId, isPl2300, btcWatchAddress, spvStatus?.bridge?.minConfirmations, spvStatus?.btcNetwork])
 
   // Load + poll Bridge Out trackers. Hide is durable — poll must not resurrect.
@@ -1161,6 +1164,7 @@ export default function BridgeDepositPanel({
       cancelled = true
       clearInterval(id)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: keyed on the listed values only; the omitted props/derived values are stable per wallet or would re-fire the poll every render
   }, [wallet.address])
 
   // Poll confirmations for open SPV bridge (survives refresh)
@@ -1224,6 +1228,7 @@ export default function BridgeDepositPanel({
       cancelled = true
       clearInterval(id)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: keyed on the listed values only; the omitted props/derived values are stable per wallet or would re-fire the poll every render
   }, [
     spvPending?.txid,
     spvPending?.status,
@@ -1640,81 +1645,9 @@ export default function BridgeDepositPanel({
   }
 
   const handleBridgeOut = async () => {
-    // ── FBTC → BTC (SPV only): burn MPT, reserve pays BTC, prove ───────────
+    // fBTC → BTC goes through the Testnet4 BitVM2 rail (rail_withdraw), the only live BTC peg-out.
     if (isFbtcRoute) {
-      if (!BTC_WITHDRAWALS_ENABLED) {
-        setError(BTC_WITHDRAWALS_OFF_MESSAGE)
-        return
-      }
-      if (!wallet.btcAddress) {
-        setError('Need multi-chain BTC address for payout')
-        return
-      }
-      const amt = parseFloat(withdrawAmount)
-      if (!Number.isFinite(amt) || amt <= 0) {
-        setError('Enter a valid fBTC amount')
-        return
-      }
-      // FBTC balance for bridge = SPV MPT only (what Claim mint creates)
-      const avail = Math.max(0, fbtcSpvLive ?? fbtcLive ?? 0)
-      if (avail + 1e-12 < amt) {
-        setError(`Insufficient fBTC (have ${fmt(avail, 8)}; need ${fmt(amt, 8)}). Use Max.`)
-        return
-      }
-      const amountSats = Math.round(amt * 1e8)
-      const minOut = Number(spvStatus?.pegOut?.minSats ?? 2000)
-      if (amountSats < minOut) {
-        setError(`Amount too small (min ${minOut} sats)`)
-        return
-      }
-      const maxOut = spvStatus?.pegOut?.maxSats
-      if (maxOut != null && amountSats > maxOut) {
-        setError(
-          `This Kickoff can pay at most ${maxOut} sats. It spends one Bitcoin output, not the whole instance.`,
-        )
-        return
-      }
-      if (isPl2300) {
-        setBusy(true)
-        setError(null)
-        setWithdrawResult(null)
-        setStep('Burning fBTC on Falcon PL…')
-        try {
-          const { keyBytes } = await authenticatePasskey(wallet.credentialId, wallet.hasPrf)
-          const falcon_secret = await decryptSeed(wallet.encrypted, keyBytes)
-          if (!wallet.btcEncrypted) {
-            throw new Error('Bitcoin dest key missing — open Multi-chain BTC')
-          }
-          const destSecretHex = (await decryptSeed(wallet.btcEncrypted, keyBytes)).replace(/^0x/i, '')
-          const out = await pegOutPlBtc({
-            account: falconId,
-            falconSecret: falcon_secret,
-            network: networkKey,
-            amountSats,
-            btcAddress: wallet.btcAddress,
-            destSecretHex,
-            onStep: setStep,
-          })
-          setWithdrawResult({
-            falconTxHash: out.txId,
-            amount: String(amt),
-            sepoliaRecipient: wallet.btcAddress,
-            btcClaimTxid: out.takeTxid || out.kickoffTxid,
-          })
-          setWithdrawAmount('')
-          setTimeout(() => {
-            void refreshFusdcBalance()
-            onFalconRefresh?.()
-          }, 1500)
-        } catch (e: unknown) {
-          setError(e instanceof Error ? e.message : 'Bridge out failed')
-        } finally {
-          setBusy(false)
-          setStep(null)
-        }
-        return
-      }
-      setError('Falcon Ledger BTC bridge is retired. Use Falcon PL 2300.')
+      await handleTn4BridgeOut()
       return
     }
 
@@ -1990,7 +1923,7 @@ const handleSpvCompleteClaim = async () => {
       return
     }
 
-    throw new Error('Falcon Ledger BTCDepositClaim is retired. Use Falcon PL 2300.')
+    throw new Error('Falcon Ledger BTCDepositClaim is retired. Use the Falcon testnet.')
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Claim failed'
     if (/tecDUPLICATE|already spent|already minted/i.test(msg)) {
@@ -2251,7 +2184,7 @@ const handleSpvCompleteClaim = async () => {
           return
         }
 
-        throw new Error('Falcon Ledger BTC bridge is retired. Use Falcon PL 2300.')
+        throw new Error('Falcon Ledger BTC bridge is retired. Use the Falcon testnet.')
       }
 
       setStep(
@@ -3731,93 +3664,6 @@ const handleSpvCompleteClaim = async () => {
                   </button>
                 </div>
 
-                <div className="hidden" aria-hidden="true">
-                {!BTC_WITHDRAWALS_ENABLED && (
-                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 space-y-1">
-                    <p className="text-xs font-semibold text-amber-300">{BTC_WITHDRAWALS_OFF_MESSAGE}</p>
-                    <p className="text-[11px] text-slate-400 leading-snug">
-                      Bridge out to Bitcoin is switched off, and new BTC deposits are paused. If you
-                      already burned FBTC for a withdrawal, that withdrawal is pending: it has not been
-                      paid yet, and its record is kept.
-                    </p>
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  <div className="text-[10px] uppercase tracking-wide text-slate-500 font-medium">Amount</div>
-                  <label className="text-xs text-slate-400">FBTC</label>
-                  <input
-                    type="number"
-                    value={withdrawAmount}
-                    onChange={(e) => { setWithdrawAmount(e.target.value); setError(null) }}
-                    placeholder="0.00000000"
-                    min="0.00000546"
-                    step="any"
-                    className="input-field"
-                    disabled={busy || !hasBtc || !fbtcReady || !BTC_WITHDRAWALS_ENABLED}
-                  />
-                  <div className="flex justify-between text-xs text-slate-600">
-                    <span>
-                      {(fbtcSpvLive ?? fbtcLive ?? 0) > 0
-                        ? `Available: ${fmt(fbtcSpvLive ?? fbtcLive ?? 0, 8)} fBTC`
-                        : 'No fBTC balance'}
-                    </span>
-                    {(fbtcSpvLive ?? fbtcLive ?? 0) > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const avail = fbtcSpvLive ?? fbtcLive ?? 0
-                          const maxSats = spvStatus?.pegOut?.maxSats
-                          const capped =
-                            maxSats != null ? Math.min(avail, maxSats / 1e8) : avail
-                          setWithdrawAmount(String(capped))
-                        }}
-                        className="text-brand-500"
-                      >
-                        Max
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {wallet.btcAddress && (
-                  <p className="text-[11px] text-slate-500 font-mono truncate" title={wallet.btcAddress}>
-                    → {wallet.btcAddress.slice(0, 10)}…{wallet.btcAddress.slice(-6)}
-                  </p>
-                )}
-                {spvLive && (
-                  <div className="space-y-1.5 rounded-xl border border-slate-700/60 bg-slate-900/40 px-3 py-2.5">
-                    <p className="text-[11px] text-slate-500 leading-snug">
-                      Peg-out burns FBTC, then a dest-lock Kickoff (claimer CHECKSIG, no FROST). After
-                      CSV={spvStatus?.pegOut?.csv ?? 6} your Bitcoin key takes. One Kickoff spends one
-                      output and can pay{' '}
-                      {spvStatus?.pegOut?.maxSats != null
-                        ? `${spvStatus.pegOut.maxSats} sats`
-                        : 'that output minus the fee'}
-                      .
-                    </p>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={handleBridgeOut}
-                  disabled={
-                    !BTC_WITHDRAWALS_ENABLED ||
-                    busy ||
-                    !hasBtc ||
-                    !fbtcReady ||
-                    withdrawAmtNum <= 0 ||
-                    withdrawAmtNum > (fbtcSpvLive ?? fbtcLive ?? 0)
-                  }
-                  className="btn-primary flex items-center justify-center gap-2"
-                >
-                  {busy ? (
-                    <>
-                      <Spinner /> {step ?? 'Signing…'}
-                    </>
-                  ) : (
-                    'Bridge out'
-                  )}
-                </button>
-                </div>
               </>
             )}
 

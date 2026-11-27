@@ -129,7 +129,7 @@ export default function MarketingHomePage() {
               A quantum-safe participation ledger
             </p>
             <p className="hero-support reveal-load" data-delay="400">
-              Pre-public Falcon-512 testnet 2300. Test tokens have no cash value.
+              Pre-public Falcon testnet. Test tokens have no cash value.
               Post-quantum signatures from genesis.
             </p>
             <p className="hero-status reveal-load" data-delay="500">
@@ -168,7 +168,7 @@ export default function MarketingHomePage() {
               <p className="section-intro">
                 Falcon PL is a quantum-safe participation ledger — Falcon Consensus and Falcon-512,
                 designed for long-term security and fair participation. This site is the pre-public
-                2300 testnet, not a finished multi-chain product.
+                Falcon testnet, not a finished multi-chain product.
               </p>
             </div>
             <div className="feature-grid">
@@ -216,7 +216,7 @@ export default function MarketingHomePage() {
         <section className="section section-roof" id="platform">
           <div className="container">
             <div className="section-header reveal">
-              <p className="section-eyebrow">Testnet 2300</p>
+              <p className="section-eyebrow">Falcon testnet</p>
               <h2 className="section-title">What you can try today</h2>
               <p className="section-intro">
                 Wallet, faucet, and explorer are live on this PQC testnet. AMM, lend, and dest-lock
@@ -280,17 +280,17 @@ export default function MarketingHomePage() {
               {
                 n: '01',
                 title: 'Testnet wallet',
-                p1: 'Hold FPL on Falcon PL 2300. ETH/USDC: Groth16 FalconQcBridge (STATUS). BTC: the BTC bridge is BTC4 on Bitcoin Testnet4, trust-minimised (BitVM2 graph, 3-operator n-of-n). The old testnet3 rail is legacy and frozen (no deposits or withdrawals). Testnet 2300 (test tokens, no cash value).',
+                p1: 'Hold FPL, fETH, fUSDC and fBTC on the Falcon testnet, and swap between any of them in a couple of taps. Sign in with a passkey: no seed phrase to copy down.',
                 p2: 'Passkey wallet on this testnet. Test tokens have no cash value.',
                 img: '/assets/images/features/feature-wallet.jpg',
                 reverse: false,
               },
               {
                 n: '02',
-                title: 'Testnet dest-lock',
-                badge: 'Experimental',
-                p1: 'ETH/USDC: Groth16 FalconQcBridge (STATUS). BTC: deposits and withdrawals paused (custodial today; BitVM2 rebuild). Testnet 2300 only.',
-                p2: 'Experimental testnet corridor — not a finished bridge product.',
+                title: 'Bridges',
+                badge: 'Testnet',
+                p1: 'ETH and USDC: the FalconQcBridge V3 bridge is live on Sepolia, with deposits and withdrawals proven on-chain (Groth16). BTC: bridge Bitcoin Testnet4 into fBTC and back out through a BitVM2 graph run by 3 operators (n-of-n). Every bridge is non-custodial.',
+                p2: 'Testnet bridges: test tokens only, no cash value.',
                 img: '/assets/images/features/feature-bridge.jpg',
                 reverse: true,
               },
@@ -369,7 +369,7 @@ export default function MarketingHomePage() {
                 {
                   n: '03',
                   title: 'Testnet rewards for the people who secure and use the network',
-                  text: 'On testnet 2300, validators, liquidity providers, and participants earn from the protocol. Testnet rewards only — test tokens have no cash value.',
+                  text: 'On the Falcon testnet, validators, liquidity providers, and participants earn from the protocol. Testnet rewards only — test tokens have no cash value.',
                 },
                 {
                   n: '04',
@@ -451,7 +451,7 @@ export default function MarketingHomePage() {
             </a>
           </nav>
           <p className="footer-copy">
-            &copy; <span id="year"></span> Falcon PL. Pre-public testnet 2300. Test tokens have no cash
+            &copy; <span id="year"></span> Falcon PL. Pre-public Falcon testnet. Test tokens have no cash
             value.
           </p>
         </div>

@@ -36,7 +36,7 @@ function resolveArcadeUrl(): string {
 }
 
 const ARCADE_URL = resolveArcadeUrl()
-/** Arcade chrome and faucet are Falcon PL 2300 testnet only. */
+/** Arcade chrome and faucet are Falcon testnet only. */
 const ARCADE_NETWORK = 'testnet' as const
 
 const ARCADE_ORIGIN = (() => {
@@ -407,8 +407,7 @@ export default function ArcadePage() {
       </Header>
       <div className="shrink-0">
         <div className="bg-amber-950/50 border-b border-amber-800/40 px-4 py-2 text-center text-xs text-amber-200/90">
-          <span className="font-medium">Falcon PL</span>
-          {' · '}Network ID 2300
+          <span className="font-medium">Falcon testnet</span>
           {' · '}FPL testnet — no real value
           {' · '}Game Faucet: your run scores add up — 500 pts today unlocks a claim
         </div>

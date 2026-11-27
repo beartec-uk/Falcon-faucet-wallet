@@ -5,7 +5,7 @@ import { pageMeta } from '@/lib/seo'
 export const metadata = pageMeta(
   '/scan',
   'Explorer',
-  'Falcon PL testnet 2300 explorer: blocks, transactions, accounts, validators and the testnet activity leaderboard.',
+  'Falcon testnet explorer: blocks, transactions, accounts, validators and the testnet activity leaderboard.',
 )
 
 export default function Layout({ children }: { children: React.ReactNode }) {

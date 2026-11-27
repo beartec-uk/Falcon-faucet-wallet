@@ -1,6 +1,6 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 /**
- * Falcon PL 2300 validator onboarding helpers shared by /validator, /validator/apply and
+ * Falcon testnet validator onboarding helpers shared by /validator, /validator/apply and
  * /api/pl2300/validators. Designed against the 2.9.62 interfaces (rewards plan A6/A9/A10/A11):
  * validator public key + proof of possession in the Bond tx, admission by Scott's approval
  * (status.approvals), 50,000 FPL minimum bond for new ids, auto-inactive seats.

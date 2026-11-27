@@ -83,6 +83,9 @@ function makeEnv() {
     },
     '@/lib/origin': { isOriginAllowed: () => true, requireBrowserOrigin: () => true },
     '@/lib/swap-log': { recordSwap: async () => {} },
+    // DB-backed tx log: stubbed so the route loads without @neondatabase/serverless.
+    '@/lib/pl-tx-log': { recordPlTx: async () => {}, lookupPlTxs: async () => new Map() },
+    '@/lib/security': { clientIp: () => '127.0.0.1' },
     '@/lib/api-guard': {
       BodyTooLarge: class BodyTooLarge extends Error {},
       readBodyCapped: async (r) => JSON.stringify(await r.json()),
@@ -258,23 +261,18 @@ await check('API submit: BTC rail_withdraw submitted with flag on', async () => 
   assert.equal(calls.plSubmit.length, 1)
 })
 
-await check('UI: BridgeDepositPanel gates FBTC Bridge out', () => {
+await check('UI: BridgeDepositPanel routes fBTC Bridge out to the Testnet4 rail', () => {
   const src = readFileSync(path.join(root, 'src/components/BridgeDepositPanel.tsx'), 'utf8')
   assert.match(src, /from '@\/lib\/btc-withdrawals'/)
-  // handler: refuses before any burn
-  assert.match(
-    src,
-    /if \(isFbtcRoute\) \{\s*if \(!BTC_WITHDRAWALS_ENABLED\) \{\s*setError\(BTC_WITHDRAWALS_OFF_MESSAGE\)\s*return\s*\}/,
-  )
-  // withdraw form: notice + disabled input and Bridge out button
-  const form = src.slice(src.indexOf("{direction === 'withdraw' && isFbtcRoute && ("))
-  const block = form.slice(0, form.indexOf("{direction === 'withdraw' && !isFbtcRoute && ("))
-  assert.ok(block.length > 0, 'FBTC withdraw block not found')
-  assert.match(block, /!BTC_WITHDRAWALS_ENABLED && \(/)
-  assert.match(block, /\{BTC_WITHDRAWALS_OFF_MESSAGE\}/)
-  assert.match(block, /disabled=\{busy \|\| !hasBtc \|\| !fbtcReady \|\| !BTC_WITHDRAWALS_ENABLED\}/)
-  assert.match(block, /onClick=\{handleBridgeOut\}\s*disabled=\{\s*!BTC_WITHDRAWALS_ENABLED \|\|/)
-  assert.match(block, /withdrawal is pending/)
+  // handler: fBTC Bridge out only goes through the Testnet4 BitVM2 rail_withdraw path;
+  // the legacy SPV burn (pegOutPlBtc) is not reachable from the panel.
+  assert.match(src, /if \(isFbtcRoute\) \{\s*await handleTn4BridgeOut\(\)\s*return\s*\}/)
+  assert.doesNotMatch(src, /pegOutPlBtc\(/)
+  const tn4 = src.slice(src.indexOf('async function handleTn4BridgeOut()'))
+  assert.match(tn4.slice(0, 4000), /signRailWithdraw\(\{[\s\S]*asset: 'BTC4'/)
+  // a legacy withdrawal that was already burned still shows as pending while paused
+  assert.match(src, /!BTC_WITHDRAWALS_ENABLED && needsFinish && \(/)
+  assert.match(src, /withdrawal is pending/)
 })
 
 if (failures) {

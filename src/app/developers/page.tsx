@@ -12,7 +12,7 @@ export default function DevelopersPage() {
     <ContentPage current="community" title="Developers">
       <DevNav />
       <TestnetNotice />
-      <p>Tools for building on the Falcon PL post-quantum testnet (network 2300).</p>
+      <p>Tools for building on the Falcon testnet, our post-quantum network (network ID 2300 in RPC and CLI calls).</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {DEV_PAGES.map((p) => (
           <Link key={p.href} href={p.href} className="block">

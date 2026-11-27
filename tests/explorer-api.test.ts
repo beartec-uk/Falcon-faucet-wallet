@@ -147,7 +147,9 @@ describe('handlers', () => {
   it('account transactions paginate', async () => {
     const j = await (await h.getAccountTxs(R('/x?limit=2'), 'alice')).json()
     expect(j.items).toHaveLength(2)
-    expect(j.items[0].amount).toMatchObject({ asset: 'ETH', value: '1' })
+    // Order-book fills merge in newest-first (fixture fill is at 800_010), then recent_txs.
+    expect(j.items[0]).toMatchObject({ kind: 'order_fill', height: 800_010 })
+    expect(j.items[1].amount).toMatchObject({ asset: 'ETH', value: '1' })
     expect(j.page.next_cursor).toBeTruthy()
     expect((await h.listTransactions(R('/v1/explorer/transactions'))).status).toBe(400)
   })

@@ -12,7 +12,7 @@ export const revalidate = 300
 
 const STUB = `#!/usr/bin/env bash
 echo "Falcon PL node binaries are not published yet." >&2
-echo "Follow https://falcon-fpl.com/validator for the release (public testnet 2300)." >&2
+echo "Follow https://falcon-fpl.com/validator for the release (public Falcon testnet)." >&2
 exit 1
 `
 

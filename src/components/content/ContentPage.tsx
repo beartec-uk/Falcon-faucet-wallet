@@ -21,7 +21,7 @@ export default function ContentPage({
 }) {
   return (
     <ProductShell intensity={0.4} className="bg-slate-950 text-slate-100">
-      <Header current={current} subtitle={subtitle ?? 'Falcon PL · 2300'} />
+      <Header current={current} subtitle={subtitle ?? 'Falcon testnet'} />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-10 space-y-6 text-sm text-slate-300">
         {back && (
           <Link href={back.href} className="text-xs text-slate-500 hover:text-slate-300">

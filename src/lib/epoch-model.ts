@@ -1,7 +1,7 @@
 // Copyright (c) 2025-2026 BEARTEC. All rights reserved. See LICENSE.
 /**
  * Epoch / CID / PoPL display parameters (legacy XRPL UI + preview math).
- * Falcon PL 2300 does not use the CID schedule: it emits a flat `emission_bps`
+ * Falcon testnet does not use the CID schedule: it emits a flat `emission_bps`
  * (30 = 0.30%) of the treasury per 7-day epoch; see `pl-rewards-model.ts`.
  */
 
@@ -27,7 +27,7 @@ export interface EpochOverview {
   emissionRateFalcon: number | null
   lpAllocationPct: number | null
   lpProviderCount: number | null
-  /** Legacy XRPL CID fields. On Falcon PL 2300 they carry the live 0.30%/epoch model. */
+  /** Legacy XRPL CID fields. On Falcon testnet they carry the live 0.30%/epoch model. */
   cidEmissionPct: number | null
   cidYearlyAvgPct: number | null
   /** Falcon PL: treasury emission per epoch in bps (economy.rs `emission_bps`, 30 = 0.30%). */

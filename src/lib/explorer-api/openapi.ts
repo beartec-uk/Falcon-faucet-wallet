@@ -41,7 +41,7 @@ export const openapi = {
     title: 'Falcon PL Explorer API',
     version: API_VERSION,
     description:
-      'Public read-only explorer/indexer API for Falcon PL (network 2300). Amounts are objects with a base-unit `raw` string, ' +
+      'Public read-only explorer/indexer API for the Falcon testnet (network ID 2300). Amounts are objects with a base-unit `raw` string, ' +
       '`decimals` and an exact decimal `value` string. List endpoints use opaque cursor pagination. Every 200 carries a weak ETag; ' +
       'send If-None-Match to get 304. Cache-Control / CDN-Cache-Control are tuned per endpoint.',
     license: { name: 'Proprietary (BEARTEC)', identifier: 'LicenseRef-BEARTEC-Proprietary' },

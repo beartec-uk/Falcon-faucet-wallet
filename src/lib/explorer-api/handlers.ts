@@ -17,6 +17,8 @@ import {
   txFromNode,
   validatorsFromStatus,
 } from './mappers'
+import { lookupPlTxs } from '@/lib/pl-tx-log'
+import { accountHistory, enrichRecentTxs } from './account-history'
 import { blockRing, bookCall, getAccount, getStatus, nodeCalls, startedAt, tipSeen, type BookResult } from './node'
 import { paginate, pageParams } from './pagination'
 
@@ -82,13 +84,18 @@ export async function blockByHeight(req: Request, heightParam: string): Promise<
 
 // ---- accounts / transactions --------------------------------------------
 
-async function withAccount(req: Request, a: string, where: string, f: (name: string, body: Obj) => Response): Promise<Response> {
+async function withAccount(
+  req: Request,
+  a: string,
+  where: string,
+  f: (name: string, body: Obj) => Response | Promise<Response>,
+): Promise<Response> {
   const name = validAccount(req, a)
   if (typeof name !== 'string') return name
   try {
     const body = await getAccount(name)
     if (body.exists === false) return apiError(req, 404, 'not_found', `account ${name} not found`)
-    return f(name, body)
+    return await f(name, body)
   } catch (e) {
     return nodeUnavailable(req, where, e)
   }
@@ -108,8 +115,22 @@ export function getBalances(req: Request, a: string) {
 export function getAccountTxs(req: Request, a: string) {
   const p = pageParams(sp(req))
   if (typeof p === 'string') return Promise.resolve(bad(req, p))
-  return withAccount(req, a, 'accounts/:account/transactions', (n, b) => {
-    const all = (Array.isArray(b.recent_txs) ? (b.recent_txs as Obj[]) : []).map(txFromNode)
+  return withAccount(req, a, 'accounts/:account/transactions', async (n, b) => {
+    // Same sources as the wallet Activity list: recent_txs (+ tx-log kinds) and order-book fills.
+    const raw = Array.isArray(b.recent_txs) ? (b.recent_txs as Obj[]) : []
+    const within = <T,>(pr: Promise<T>, ms: number, fallback: T) =>
+      Promise.race([pr.catch(() => fallback), new Promise<T>((r) => setTimeout(() => r(fallback), ms))])
+    const [meta, fills] = await Promise.all([
+      within(lookupPlTxs(raw.map((t) => String(t.tx_id ?? ''))), 2_000, new Map()),
+      within(
+        bookCall({ type: 'fills_query', pair: null, account: n, limit: 200 }).then((r) =>
+          r.kind === 'ok' && Array.isArray(r.body.fills) ? (r.body.fills as Obj[]) : [],
+        ),
+        3_000,
+        [] as Obj[],
+      ),
+    ])
+    const all = accountHistory(n, enrichRecentTxs(raw, meta), fills)
     return apiJson(req, { account: n, ...paginate(all, p) }, { cache: CACHE.short })
   })
 }

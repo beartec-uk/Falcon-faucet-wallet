@@ -36,7 +36,7 @@ export default function MethodologyPage() {
         </div>
         <h1 className="text-2xl font-semibold" style={{ color: '#E0DBCA' }}>Testnet activity: how it&apos;s counted</h1>
         <p>
-          The testnet activity leaderboard measures how accounts use Falcon PL testnet 2300.
+          The testnet activity leaderboard measures how accounts use the Falcon testnet.
         </p>
         <p className="text-slate-400">
           Under the proposed model, a frozen snapshot of these scores may be used for a pre-mainnet airdrop from the community

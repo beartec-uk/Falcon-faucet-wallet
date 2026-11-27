@@ -12,7 +12,7 @@ export const metadata = pageMeta(
 const GENERAL: { q: string; a: string }[] = [
   {
     q: 'What is Falcon PL?',
-    a: 'Falcon PL is a quantum-safe participation ledger. It uses Falcon Consensus and Falcon-512 post-quantum signatures from genesis. Testnet 2300 is live with a wallet, faucet and explorer; AMM, lending and the dest-lock bridge are experimental.',
+    a: 'Falcon PL is a quantum-safe participation ledger. It uses Falcon Consensus and Falcon-512 post-quantum signatures from genesis. The Falcon testnet is live with a passkey wallet, faucet, explorer, swaps, pools, lending and an order book. Bridge Sepolia ETH and USDC in and out through the FalconQcBridge V3 bridge, and Bitcoin Testnet4 through a BitVM2 bridge run by 3 operators. Everything is testnet, so tokens have no cash value.',
   },
   {
     q: 'How do I get testnet FPL?',
@@ -51,7 +51,7 @@ const AIRDROP: { q: string; a: string }[] = [
   },
   {
     q: 'How do I start?',
-    a: 'Create a wallet, claim test FPL from the faucet, then use swaps, pools, lending, payments and the arcade on testnet 2300.',
+    a: 'Create a wallet, claim test FPL from the faucet, then use swaps, pools, lending, payments and the arcade on the Falcon testnet.',
   },
 ]
 

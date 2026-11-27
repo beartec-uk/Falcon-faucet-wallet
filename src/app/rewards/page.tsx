@@ -179,7 +179,7 @@ function LegacyRewardsPage() {
       setTokens(configured)
       if (configured.length > 0) setSwapToken(configured[0])
       try {
-        // Falcon PL 2300 renders <PlRewards /> from chain data; the XRPL bond/LP routes are retired (410) there.
+        // Falcon testnet renders <PlRewards /> from chain data; the XRPL bond/LP routes are retired (410) there.
         if (network.networkId === 2300) return
         if (creds?.address) await refreshBond(creds.address)
         const lpAddr = primary?.address ?? creds?.address
@@ -1017,7 +1017,7 @@ function LegacyRewardsPage() {
   )
 }
 
-/** Falcon PL 2300 redirects to the unified Airdrop hub (/airdrop?tab=claim); other networks keep the legacy XRPL view. */
+/** Falcon testnet redirects to the unified Airdrop hub (/airdrop?tab=claim); other networks keep the legacy XRPL view. */
 export default function RewardsPage() {
   const { network } = useNetwork()
   const router = useRouter()

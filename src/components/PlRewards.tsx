@@ -2,7 +2,7 @@
 'use client'
 
 /**
- * Falcon PL 2300 rewards: live epoch economy from the chain (/api/pl2300/rewards)
+ * Falcon testnet rewards: live epoch economy from the chain (/api/pl2300/rewards)
  * and a browser-signed Claim with the wallet passkey (Falcon-512 WASM).
  */
 
@@ -192,7 +192,7 @@ export default function PlRewards({ embedded = false }: { embedded?: boolean } =
   return (
     <div className={embedded ? 'space-y-6' : 'mx-auto max-w-5xl space-y-6 px-4 py-8'}>
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-400/90">Falcon PL 2300 · Epoch Emissions</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-400/90">Falcon testnet · Epoch Emissions</p>
         <h2 className="mt-1 text-xl font-semibold text-white">Claim Epoch Rewards</h2>
         <p className="mt-1 text-sm text-slate-400">
           Each 7-day epoch the chain emits {data ? (data.emissionBps / 100).toFixed(2) : '0.30'}% of the treasury

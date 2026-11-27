@@ -202,6 +202,12 @@ export default function SwapPage() {
 
   // Load pair list: stables + live SPV FBTC MPT (preferred over legacy IOU FBTC)
   useEffect(() => {
+    // Falcon testnet renders <PlFplMarkets /> from chain data; the legacy XRPL
+    // /api/swap pair list would only 502 there, so leave pairs empty (no legacy fetches).
+    if (network.networkId === 2300) {
+      setPairs([])
+      return
+    }
     Promise.all([
       fetch('/config/testnet-stables.json').then((r) => r.json()),
       fetch(withNetworkQuery('/api/swap?symbol=FBTC', networkKey)).then((r) => r.json()),
@@ -293,7 +299,7 @@ export default function SwapPage() {
         },
       )
       .catch(() => setPairs([]))
-  }, [selectedSymbol, networkKey])
+  }, [selectedSymbol, networkKey, network.networkId])
 
   const setTradeModePersisted = (mode: TradeMode) => {
     setTradeMode(mode)

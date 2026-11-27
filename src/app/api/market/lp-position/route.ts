@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { resolveNetworkKey, serverRpcCall } from '@/lib/network-server'
 import { isMptToken, resolveStableToken } from '@/lib/swap/token-config'
 import { satsToBtc } from '@/lib/xrpl-amount'
+import { retiredOnPl } from '@/lib/pl-retired'
 
 const DROPS = 1_000_000
 
@@ -38,6 +39,8 @@ function parseTokenPoolAmount(amount2: unknown, mpt: boolean): number {
 }
 
 export async function GET(req: NextRequest) {
+  const retired = retiredOnPl(req)
+  if (retired) return retired
   const networkKey = resolveNetworkKey(req.nextUrl.searchParams.get('network'))
   const address = req.nextUrl.searchParams.get('address')?.trim() ?? ''
   if (!address) {
