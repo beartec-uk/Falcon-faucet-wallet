@@ -6,6 +6,7 @@
 // Copy rule: this measures testnet activity. It promises nothing.
 
 import { TRACKER_CONFIG, type TrackerCategory } from '@/config/tracker'
+import { scoringPricesFpl } from '@/lib/scoring-prices'
 import { computeArcadeAirdropPoints } from '@/lib/arcade-airdrop'
 import type { AccountActivity, ActiveDay, StoredEvent } from '@/lib/activity-index'
 import { toFloat } from '@/lib/pl-exact-json'
@@ -172,17 +173,12 @@ export function windowStart(now: number, days = TRACKER_CONFIG.windowDays): stri
   return new Date(now - days * 86_400_000).toISOString().slice(0, 10)
 }
 
-function pricesFpl(st: Obj): Record<string, number> {
-  const out: Record<string, number> = { FPL: 1 }
-  for (const m of arr(st.defi_markets)) out[s(m.asset)] = Number(m.price_fpl) || 0
-  return out
-}
 
 /** Score one account. Pure. */
 export function scoreAccount(name: string, inp: TrackerInput): TrackerRow {
   const c = { ...TRACKER_CONFIG.caps, ...TRACKER_CONFIG.bonusCaps }
   const since = windowStart(inp.now)
-  const price = pricesFpl(inp.st)
+  const price = scoringPricesFpl(inp.st, inp.now)
   const a = inp.activity.find((x) => x.account === name)
   const mine = inp.events.filter((e) => e.account === name)
   const val = (e: StoredEvent) => toFloat(e.amount, ASSET_DECIMALS[e.asset] ?? 0) * (price[e.asset] ?? 0)
